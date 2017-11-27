@@ -18,7 +18,8 @@
 // 
 //////////////////////////////////////////////////////////////////////////////////
 
-
+import ryuki_datatypes::trace_output;
+`include "../../include/ryuki_defines.sv"
 
 module ryuki_testbench;
 
@@ -41,7 +42,7 @@ module ryuki_testbench;
     logic [31:0] instr_rdata_i;
     
     // Instruction Memory
-    instruction_memory i_mem(clk_i, instr_req_o, instr_addr_o, 
+    instruction_memory #(`ADDR_WIDTH, `DATA_WIDTH, `NUM_WORDS) i_mem  (clk_i, instr_req_o, instr_addr_o, 
                                 instr_gnt_i, instr_rvalid_i, instr_rdata_i);
     
     // Data memory interface
@@ -55,7 +56,7 @@ module ryuki_testbench;
     logic [31:0] data_rdata_i;
     logic        data_err_i;
     
-    data_memory d_mem(clk_i, data_req_o, data_addr_o, data_we_o, data_be_o,
+    data_memory  #(`ADDR_WIDTH, `DATA_WIDTH, `NUM_WORDS) d_mem (clk_i, data_req_o, data_addr_o, data_we_o, data_be_o,
                         data_wdata_o, data_gnt_i,  data_rvalid_i, data_rdata_i,
                         data_err_i);
     
@@ -80,9 +81,11 @@ module ryuki_testbench;
     
     logic  ext_perf_counters_i;
     
+    riscv_core  #(1, `DATA_WIDTH) core(.*);
     
+    trace_output mem_mon_output;
     
-    riscv_core  #(1,32) core(.*);
+    memory_monitor #(`ADDR_WIDTH, `DATA_WIDTH) mem_monitor(instr_req_o, instr_addr_o, instr_gnt_i,  instr_rvalid_i, instr_rdata_i, mem_mon_output);
     
     initial
         begin
@@ -93,9 +96,9 @@ module ryuki_testbench;
             test_en_i = 0;
             core_id_i = 0;
             cluster_id_i = 0;
-            boot_addr_i = 32'h8000;
+            boot_addr_i = 32'h20;
             fetch_enable_i = 1;
-            #10 rst_ni = 1;
+            #50 rst_ni = 1;
             #500 $finish;
         end
     

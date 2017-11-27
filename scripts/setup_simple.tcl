@@ -19,7 +19,7 @@ set_property "target_language" "Verilog" $obj
 create_fileset -simset full_simulation
 create_fileset -simset memory_simulation
 
-# Add in design files
+# Add in design files from Pulpino Repo
 add_files $include_root
 add_files -norecurse $rtl_root/riscv_core.sv
 add_files -norecurse $rtl_root/cluster_clock_gating.sv
@@ -40,9 +40,14 @@ add_files -norecurse $rtl_root/mult.sv
 add_files -norecurse $rtl_root/load_store_unit.sv
 add_files -norecurse $rtl_root/cs_registers.sv
 add_files -norecurse $rtl_root/debug_unit.sv
+add_files -norecurse $rtl_root/riscv_tracer.sv
+
+# Add in homebrewed files
 add_files -norecurse $rtl_root/data_memory_mock.sv
 add_files -norecurse $rtl_root/instruction_memory_mock.sv
-add_files -norecurse $rtl_root/riscv_tracer.sv
+add_files -norecurse $include_root/ryuki_defines.sv
+add_files -norecurse $rtl_root/ryuki_datatypes.sv
+add_files -norecurse $rtl_root/mem_monitor.sv
 
 # Add simulation testbenches
 add_files -norecurse -fileset full_simulation $tb_root/system
