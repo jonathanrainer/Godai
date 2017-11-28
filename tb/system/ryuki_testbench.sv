@@ -81,11 +81,14 @@ module ryuki_testbench;
     
     logic  ext_perf_counters_i;
     
+    // Tracing Signals
+    logic if_busy;
+    logic if_ready;
+    
     riscv_core  #(1, `DATA_WIDTH) core(.*);
     
-    trace_output mem_mon_output;
-    
-    memory_monitor #(`ADDR_WIDTH, `DATA_WIDTH) mem_monitor(instr_req_o, instr_addr_o, instr_gnt_i,  instr_rvalid_i, instr_rdata_i, mem_mon_output);
+    trace_unit #(`ADDR_WIDTH, `DATA_WIDTH, `TRACE_BUFFER_SIZE) tracer(clk_i, rst_ni, if_busy, if_ready,
+    instr_req_o, instr_addr_o, instr_gnt_i,  instr_rvalid_i, instr_rdata_i);
     
     initial
         begin

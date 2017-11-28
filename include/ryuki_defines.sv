@@ -7,3 +7,6 @@
 `ifndef NUM_WORDS 
 `define NUM_WORDS 16192
 `endif
+`ifndef TRACE_BUFFER_SIZE
+`define TRACE_BUFFER_SIZE 128
+`endif

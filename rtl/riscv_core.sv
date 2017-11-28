@@ -83,7 +83,11 @@ module riscv_core
   input  logic        fetch_enable_i,
   output logic        core_busy_o,
 
-  input  logic [N_EXT_PERF_COUNTERS-1:0] ext_perf_counters_i
+  input  logic [N_EXT_PERF_COUNTERS-1:0] ext_perf_counters_i,
+  
+  // Extra Tracing Ports
+  output logic if_busy,
+  output logic if_ready
 );
 
   localparam N_HWLP      = 2;
@@ -257,7 +261,6 @@ module riscv_core
   logic        perf_jump;
   logic        perf_jr_stall;
   logic        perf_ld_stall;
-
 
   //////////////////////////////////////////////////////////////////////////////////////////////
   //   ____ _            _      __  __                                                   _    //
