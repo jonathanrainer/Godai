@@ -33,8 +33,9 @@ module trace_unit
     // IF Pipeline Stage State Machine
     enum logic [1:0] {
         SLEEP =         2'b00,
-        WAIT_GNT =      2'b01,
-        WAIT_RVALID =   2'b10
+        ACCESS_START =  2'b01,
+        WAIT_GNT =      2'b10,
+        WAIT_RVALID =   2'b11
      } state, next;
     
     
@@ -59,7 +60,7 @@ module trace_unit
     
     always @(posedge clk) 
     begin
-        counter++;
+        counter = counter + 1;
     end
     
     // Creation of record to track instruction's responsibility
@@ -72,8 +73,16 @@ module trace_unit
             begin
                 if (if_busy || if_ready)
                 begin
-                    next = WAIT_GNT;
-                    trace_buffer[tag_counter].if_data.time_start = counter;
+                    next <= ACCESS_START;
+                    trace_buffer[tag_counter].if_data.time_start <= counter;
+                end
+            end
+            ACCESS_START:
+            begin
+                if (instr_req)
+                begin
+                    trace_buffer[tag_counter].if_data.mem_access.time_start <= counter;
+                    next <= WAIT_GNT;
                 end
             end
             WAIT_GNT:
@@ -81,7 +90,7 @@ module trace_unit
                 if (instr_grant)
                 begin 
                     trace_buffer[tag_counter].addr <= instr_addr;
-                    next = WAIT_RVALID;
+                    next <= WAIT_RVALID;
                 end
             end
             WAIT_RVALID:
@@ -89,8 +98,15 @@ module trace_unit
                 if (instr_rvalid)
                 begin
                     trace_buffer[tag_counter].instruction <= instr_rdata;
-                    trace_buffer[tag_counter].if_data.time_end = counter;
+                    trace_buffer[tag_counter].if_data.time_end <= counter;
+                    trace_buffer[tag_counter].if_data.mem_access.time_end <= counter;
                     tag_counter = (tag_counter + 1) % TRACE_BUFFER_SIZE;
+                    if (if_ready)
+                    begin 
+                        next = ACCESS_START;
+                        trace_buffer[tag_counter].if_data.time_start <= counter; 
+                    end
+                    else next = SLEEP;
                 end
             end
         endcase
@@ -114,8 +130,8 @@ module trace_unit
             counter <= 0;
             tag_counter <= 0;
             initialise_trace_buffer();
-            state = SLEEP;
-            next = SLEEP;
+            state <= SLEEP;
+            next <= SLEEP;
         end
     endtask
      

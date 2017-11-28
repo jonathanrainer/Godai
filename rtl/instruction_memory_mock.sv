@@ -28,7 +28,7 @@ module instruction_memory
     } State, Next;
     
     int delay_counter = 0;
-    int delay_limit = 0;
+    int delay_limit = 10;
 
   initial
     begin
