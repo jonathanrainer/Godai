@@ -86,8 +86,9 @@ module riscv_core
   input  logic [N_EXT_PERF_COUNTERS-1:0] ext_perf_counters_i,
   
   // Extra Tracing Ports
-  output logic if_busy,
-  output logic if_ready
+  output logic if_busy_o,
+  output logic if_ready_o,
+  output logic is_decoding_o
 );
 
   localparam N_HWLP      = 2;
@@ -261,6 +262,15 @@ module riscv_core
   logic        perf_jump;
   logic        perf_jr_stall;
   logic        perf_ld_stall;
+
+  /////
+  // Tracing Requirements
+  ////
+  
+  assign if_busy_o = if_busy;
+  assign if_ready_o = if_ready;
+  assign is_decoding_o = is_decoding;
+  
 
   //////////////////////////////////////////////////////////////////////////////////////////////
   //   ____ _            _      __  __                                                   _    //

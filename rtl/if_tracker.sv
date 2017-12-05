@@ -3,8 +3,7 @@ import ryuki_datatypes::trace_output;
 module if_tracker
 #(
     parameter ADDR_WIDTH = 32,
-    parameter DATA_WIDTH = 32,
-    parameter TRACE_BUFFER_SIZE = 128
+    parameter DATA_WIDTH = 32
 )
 (
     input logic clk,
@@ -105,7 +104,7 @@ module if_tracker
                     begin
                         next <= ACCESS_START;
                         trace_element = '{default:0};
-                        trace_element.if_data.time_start = counter;
+                        trace_element.if_data.time_start <= counter;
                     end
                     else next <= SLEEP;
                 end

@@ -14,9 +14,15 @@ package ryuki_datatypes;
     } IF_data;
     
     typedef struct {
+        integer time_start;
+        integer time_end;
+    } ID_data;
+    
+    typedef struct {
         bit [`DATA_WIDTH-1:0] instruction;
         bit [`ADDR_WIDTH-1:0] addr;
         IF_data if_data;
+        ID_data id_data;
      } trace_output;
      
 

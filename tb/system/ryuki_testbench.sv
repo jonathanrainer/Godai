@@ -82,13 +82,18 @@ module ryuki_testbench;
     logic  ext_perf_counters_i;
     
     // Tracing Signals
-    logic if_busy;
-    logic if_ready;
+    logic if_busy_o;
+    logic if_ready_o;
+    logic is_decoding_o;
+    
+    logic trace_ready;
+    trace_output trace_o;
     
     riscv_core  #(1, `DATA_WIDTH) core(.*);
     
-    trace_unit #(`ADDR_WIDTH, `DATA_WIDTH, `TRACE_BUFFER_SIZE) tracer(clk_i, rst_ni, if_busy, if_ready,
-    instr_req_o, instr_addr_o, instr_gnt_i,  instr_rvalid_i, instr_rdata_i);
+    trace_unit #(`ADDR_WIDTH, `DATA_WIDTH) tracer(clk_i, rst_ni, if_busy, if_ready,
+    instr_req_o, instr_addr_o, instr_gnt_i,  instr_rvalid_i, instr_rdata_i, is_decoding_o, trace_ready,
+    trace_o);
     
     initial
         begin
