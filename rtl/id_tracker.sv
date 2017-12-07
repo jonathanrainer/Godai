@@ -28,6 +28,7 @@ module id_tracker
     // IF Pipeline Stage State Machine
     enum logic [1:0] {
         READY =         2'b00,
+        DECODE_START =  2'b01,
         DECODE_END =    2'b10
      } state, next;
 
@@ -40,6 +41,13 @@ module id_tracker
                 if (if_data_ready)
                 begin
                     trace_element <= if_data_in;
+                    next <= DECODE_START;
+                end
+            end
+            DECODE_START:
+            begin
+                if (is_decoding)
+                begin
                     trace_element.id_data.time_start <= counter;
                     next <= DECODE_END;
                 end
@@ -65,6 +73,20 @@ module id_tracker
             trace_element = '{default:0};
         end
     end
+    
+    initial
+    begin
+        initialise_module();
+    end
+    
+    task initialise_module();
+    begin
+        state = READY;
+        next = READY;
+        trace_element = '{default:0};
+    end
+    endtask
+    
              
 
 endmodule 

@@ -91,7 +91,7 @@ module ryuki_testbench;
     
     riscv_core  #(1, `DATA_WIDTH) core(.*);
     
-    trace_unit #(`ADDR_WIDTH, `DATA_WIDTH) tracer(clk_i, rst_ni, if_busy, if_ready,
+    trace_unit #(`ADDR_WIDTH, `DATA_WIDTH) tracer(clk_i, rst_ni, if_busy_o, if_ready_o,
     instr_req_o, instr_addr_o, instr_gnt_i,  instr_rvalid_i, instr_rdata_i, is_decoding_o, trace_ready,
     trace_o);
     
@@ -107,7 +107,7 @@ module ryuki_testbench;
             boot_addr_i = 32'h20;
             fetch_enable_i = 1;
             #50 rst_ni = 1;
-            #500 $finish;
+            #5000 $finish;
         end
     
     always

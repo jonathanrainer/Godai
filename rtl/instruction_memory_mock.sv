@@ -33,18 +33,18 @@ module instruction_memory
   initial
     begin
         mem = '{default:32'h0};
-        
-        mem[0] = 32'h00D00113;
-        mem[1] = 32'h00900093;
-        mem[2] = 32'h401101B3;
-        mem[3] = 32'h00002283;
-        mem[4] = 32'h00102303;
-        mem[5] = 32'h06302823;
-        mem[6] = 32'h07002E03;
-        mem[7] = 32'h0000006F; // Loop on this address
-        mem[8] = 32'h11111111;
+        mem[0] = 32'h00D00113; // ADDI R0, 0x13, R2
+        mem[1] = 32'h00900093; // ADDI R0, 9, R1
+        mem[2] = 32'h401101B3; // SUB R2, R1, R3 (R3 := R2 - R1)
+        mem[3] = 32'h00002283; // LW R0, 0x0, R5
+        mem[4] = 32'h00402303; // LW R0, 0x4, R6
+        mem[5] = 32'h06302823; // SW R0, 0x70, R3
+        mem[6] = 32'h07002E03; // LW R0, 0x70, R28
+        mem[7] = 32'h026283B3; // MUL R5 R6 R7
+        mem[8] = 32'h0253B433; // Divide R6 R7 R8 (R8 := R7/R6)
+        mem[9] = 32'h006386B3; // ADD R6 R7 R13
+        mem[10] = 32'h0000006F; // Loop on this address
         mem[32] = 32'hF81FF06F; // Jump to Address 0
-        mem[33] = 32'h1A1A1A1A;
         gnt_o = 1'b0;
         rvalid_o = 1'b0;
         rdata_o = 32'bx;

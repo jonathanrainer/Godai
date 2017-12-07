@@ -65,7 +65,7 @@ module trace_unit
 
     task initialise_device();
         begin
-            counter <= 0;
+            counter <= -1;
         end
     endtask
 

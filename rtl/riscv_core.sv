@@ -262,14 +262,6 @@ module riscv_core
   logic        perf_jump;
   logic        perf_jr_stall;
   logic        perf_ld_stall;
-
-  /////
-  // Tracing Requirements
-  ////
-  
-  assign if_busy_o = if_busy;
-  assign if_ready_o = if_ready;
-  assign is_decoding_o = is_decoding;
   
 
   //////////////////////////////////////////////////////////////////////////////////////////////
@@ -940,5 +932,12 @@ module riscv_core
     .wb_data_rdata    ( data_rdata_i                         )
   );
 `endif
+
+    always @(if_busy, if_ready, is_decoding)
+    begin
+        if_busy_o = if_busy;
+        if_ready_o = if_ready;
+        is_decoding_o = is_decoding;
+    end
 
 endmodule
