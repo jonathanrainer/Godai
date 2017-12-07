@@ -107,7 +107,7 @@ module ryuki_testbench;
             boot_addr_i = 32'h20;
             fetch_enable_i = 1;
             #50 rst_ni = 1;
-            #5000 $finish;
+            #50000 $finish;
         end
     
     always
