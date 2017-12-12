@@ -44,12 +44,25 @@ module data_memory
   localparam words = NUM_WORDS/(DATA_WIDTH/8);
 
   logic [DATA_WIDTH/8-1:0][7:0] mem[words];
-   logic [DATA_WIDTH/8-1:0][7:0] wdata;
+  logic [DATA_WIDTH/8-1:0][7:0] wdata;
   logic [ADDR_WIDTH-1-$clog2(DATA_WIDTH/8):0] addr;
+  
+  logic we;
+  logic [3:0] be;
 
-  integer i;
-
-  assign addr = addr_i[ADDR_WIDTH-1:$clog2(DATA_WIDTH/8)];
+  
+    enum logic [2:0] {
+    SLEEP = 3'b000,
+    WAITG = 3'b001,
+    GRANT = 3'b010,
+    WRITE = 3'b011,
+    READ = 3'b100
+    } State, Next;
+    
+    int delay_counter = 0;
+    int grant_limit = 1;
+    int read_limit = 1;
+    int write_limit = 1;
 
   initial
     begin
@@ -61,36 +74,69 @@ module data_memory
         rvalid_o = 1'b0;
         rdata_o = 32'bx;
         err_o = 1'b0;
+        State = SLEEP;
+        Next = SLEEP;
     end
+
 
   always @(posedge clk)
   begin
-    if (we_i)
-      begin
-        for (i = 0; i < DATA_WIDTH/8; i++) begin
-          if (be_i[i])
-            mem[addr][i] <= wdata[i];
-        end
-      end
-    if (req_i && (gnt_o != 1))
+    State = Next;
+    unique case(State)
+        SLEEP: 
         begin
-            gnt_o = 1;
             rvalid_o = 0;
-        end
-    else if (gnt_o == 1)
+            if (req_i || we_i) Next = WAITG;
+        end      
+        WAITG:
         begin
+            if (delay_counter < grant_limit) delay_counter++;
+            else 
+            begin
+                addr = addr_i[ADDR_WIDTH-1:$clog2(DATA_WIDTH/8)];
+                we = we_i;
+                be = be_i;
+                for(integer w = 0; w < DATA_WIDTH/8; w++)
+                begin
+                    wdata[w] = wdata_i[w*8 +: 8];
+                end
+                delay_counter = 0;
+                gnt_o = 1;
+                Next = GRANT;
+            end
+         end
+         GRANT: 
+         begin
             gnt_o = 0;
-            rvalid_o = 1;
+            if (req_i) Next = READ;
+            else if (we) Next = WRITE;
+         end
+         READ:
+         begin
             rdata_o = mem[addr];
-        end
+            if (delay_counter < read_limit) delay_counter++;
+            else 
+            begin    
+                rvalid_o = 1;
+                Next = SLEEP;
+            end
+         end
+         WRITE:
+         begin
+            if (delay_counter < write_limit) delay_counter++;
+            else
+            begin
+                for (integer i = 0; i < DATA_WIDTH/8; i++)
+                begin
+                    if (be[i]) mem[addr][i] = wdata[i];
+                end
+                delay_counter = 0;
+                rvalid_o = 1;
+                rdata_o = 32'h11111111;
+                Next = SLEEP;
+            end
+         end   
+      endcase 
   end
-  
-  genvar w;
-  generate for(w = 0; w < DATA_WIDTH/8; w++)
-    begin
-        assign wdata[w] = wdata_i[(w+1)*8-1:w*8];
-    end
-  endgenerate
-
   
 endmodule

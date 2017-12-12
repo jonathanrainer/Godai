@@ -58,10 +58,10 @@ module instruction_memory
     unique case(State)
         SLEEP: 
         begin
+            rvalid_o = 0;
             if (req_i == 1)
             begin
                 Next = WAITG;
-                rvalid_o = 0;
             end    
         end
         WAITG:
