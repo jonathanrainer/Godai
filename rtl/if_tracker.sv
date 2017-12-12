@@ -85,6 +85,7 @@ module if_tracker
             end
             SUB_ACCESS:
             begin
+                if_data_ready = 1'b0;
                 trace_element = '{default:0};
                 trace_element.if_data.time_start <= counter;
                 trace_element.if_data.mem_access.time_start <= counter;
