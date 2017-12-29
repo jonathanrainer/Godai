@@ -33,8 +33,8 @@ module instruction_memory
   initial
     begin
         mem = '{default:32'h0};
-        mem[0] = 32'h00D00113; // ADDI R0, 0x13, R2
-        mem[1] = 32'h00900093; // ADDI R0, 9, R1
+        mem[0] = 32'h10000113; // ADDI R0, 0x100, R2
+        mem[1] = 32'h00100093; // ADDI R0, 0x1, R1
         mem[2] = 32'h401101B3; // SUB R2, R1, R3 (R3 := R2 - R1)
         mem[3] = 32'h00002283; // LW R0, 0x0, R5
         mem[4] = 32'h00402303; // LW R0, 0x4, R6

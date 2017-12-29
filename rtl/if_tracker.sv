@@ -79,7 +79,7 @@ module if_tracker
             begin
                 if (instr_req)
                 begin
-                    trace_element.if_data.mem_access.time_start <= counter;
+                    trace_element.if_data.mem_access_req.time_start <= counter;
                     next <= WAIT_GNT;
                 end
             end
@@ -88,7 +88,7 @@ module if_tracker
                 if_data_ready = 1'b0;
                 trace_element = '{default:0};
                 trace_element.if_data.time_start <= counter;
-                trace_element.if_data.mem_access.time_start <= counter;
+                trace_element.if_data.mem_access_req.time_start <= counter;
                 next <= WAIT_GNT;
             end
             WAIT_GNT:
@@ -96,6 +96,8 @@ module if_tracker
                 if (instr_grant)
                 begin
                     trace_element.addr <= instr_addr;
+                    trace_element.if_data.mem_access_req.time_end <= counter;
+                    trace_element.if_data.mem_access_data.time_start <= counter;
                     next <= WAIT_RVALID;
                 end
             end
@@ -105,7 +107,7 @@ module if_tracker
                 begin
                     trace_element.instruction = instr_rdata;
                     trace_element.if_data.time_end = counter;
-                    trace_element.if_data.mem_access.time_end = counter;
+                    trace_element.if_data.mem_access_data.time_end = counter;
                     if_data_o = trace_element;
                     if_data_ready = 1'b1;
                     if (if_ready) next <= SUB_ACCESS;

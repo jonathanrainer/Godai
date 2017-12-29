@@ -61,7 +61,7 @@ module data_memory
     
     int delay_counter = 0;
     int grant_limit = 1;
-    int read_limit = 1;
+    int read_limit = 5;
     int write_limit = 1;
 
   initial
@@ -86,7 +86,7 @@ module data_memory
         SLEEP: 
         begin
             rvalid_o = 0;
-            if (req_i || we_i) Next = WAITG;
+            if (req_i) Next = WAITG;
         end      
         WAITG:
         begin
@@ -108,8 +108,8 @@ module data_memory
          GRANT: 
          begin
             gnt_o = 0;
-            if (req_i) Next = READ;
-            else if (we) Next = WRITE;
+            if (we) Next = WRITE;
+            else Next = READ;
          end
          READ:
          begin
