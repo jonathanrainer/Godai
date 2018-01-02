@@ -9,14 +9,14 @@ package ryuki_datatypes;
     
     typedef struct {
             integer time_start;
-            integer time_end;
-    } mem_access_data;
+            integer time_end;        
+    } mem_access_res;
 
     typedef struct {
         integer time_start;
         integer time_end;
         mem_access_req mem_access_req;
-        mem_access_data mem_access_data;
+        mem_access_res mem_access_res;
     } IF_data;
     
     typedef struct {
@@ -33,7 +33,7 @@ package ryuki_datatypes;
     typedef struct {
         integer time_start;
         integer time_end;
-        mem_access_data mem_access_data;
+        mem_access_res mem_access_res;
     } WB_data;
     
     typedef struct {

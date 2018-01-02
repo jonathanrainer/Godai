@@ -21,7 +21,8 @@ module id_tracker
     input logic jump_done,
     
     // Outputs to EX Tracker
-    output trace_output id_data_out
+    output trace_output id_data_o,
+    output logic id_data_ready
 );
 
     // Space to hold trace element being constructed
@@ -39,9 +40,10 @@ module id_tracker
         unique case(state)
             READY:
             begin
-                if (if_data_ready)
+                if (if_data_ready && trace_element.instruction != if_data_in.instruction)
                 begin
-                    trace_element <= if_data_in;
+                    id_data_ready = 1'b0;
+                    trace_element = if_data_in;
                     next <= DECODE_START;
                 end
             end
@@ -49,7 +51,7 @@ module id_tracker
             begin
                 if (is_decoding)
                 begin
-                    trace_element.id_data.time_start <= counter;
+                    trace_element.id_data.time_start = counter;
                     check_jump();
                     next <= DECODE_END;
                 end
@@ -60,8 +62,9 @@ module id_tracker
                 if (!is_decoding)
                 begin
                     trace_element.id_data.time_end = counter;
-                    id_data_out = trace_element;
-                    next = READY;
+                    id_data_o = trace_element;
+                    id_data_ready = 1'b1;
+                    next <= READY;
                 end
             end
         endcase
@@ -71,9 +74,7 @@ module id_tracker
     begin
         if (rst)
         begin
-            state = READY;
-            next = READY;
-            trace_element = '{default:0};
+            initialise_module();
         end
     end
     
@@ -84,9 +85,9 @@ module id_tracker
     
     task initialise_module();
     begin
-        state = READY;
-        next = READY;
-        trace_element = '{default:0};
+        state <= READY;
+        next <= READY;
+        id_data_ready <= 0;
     end
     endtask
     

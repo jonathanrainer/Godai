@@ -25,6 +25,16 @@ module trace_unit
     
     input logic is_decoding,
     input logic jump_done,
+    
+    // EX Register Ports
+    
+    input logic ex_ready,
+    
+    // Data Memory Ports
+    
+    input logic                    data_req_i,
+    input logic [ADDR_WIDTH-1:0]   data_addr_i,
+    input logic                    data_gnt_i,
 
     output logic trace_data_ready,
     output trace_output trace_data_o
@@ -36,9 +46,13 @@ module trace_unit
     
     logic if_data_ready;
     trace_output if_data_o;
+    logic id_data_ready;
+    trace_output id_data_o;
+    logic ex_data_ready;
 
     if_tracker if_tr (.*);
-    id_tracker id_tr (.if_data_in(if_data_o), .id_data_out(trace_data_o), .*);
+    id_tracker id_tr (.if_data_in(if_data_o), .*);
+    ex_tracker ex_tr (.id_data_in(id_data_o), .ex_data_o(trace_data_o), .*);
 
     initial
     begin

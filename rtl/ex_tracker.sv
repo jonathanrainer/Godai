@@ -18,11 +18,9 @@ module ex_tracker
     
     // Inputs from EX Pipelining Stage
     input logic ex_ready,
-    input logic                    req_i,
-    input logic [ADDR_WIDTH-1:0]   addr_i,
-    input logic                    we_i,
-    input logic                    gnt_i,
-    input logic                    rvalid_i,
+    input logic                    data_req_i,
+    input logic [ADDR_WIDTH-1:0]   data_addr_i,
+    input logic                    data_gnt_i,
     
     // Outputs to EX Tracker
     output trace_output ex_data_o,
@@ -35,15 +33,66 @@ module ex_tracker
     // State Machine to Control Unit
     enum logic [1:0] {
             READY =         2'b00,
-            WAIT_REQ =      2'b01,
-            REQ =           2'b10,
-            WAIT_GNT =      2'b11
+            EX_START =      2'b01,
+            WAIT_GNT =      2'b10
          } state, next;
          
     initial
     begin
         initialise_device();
     end 
+    
+    always @(posedge clk)
+    begin
+        state = next;
+        unique case(state)
+            READY:
+            begin
+                if (id_data_ready && id_data_in.instruction != trace_element.instruction)
+                begin
+                    if (id_data_in.pass_through)
+                    begin
+                        ex_data_ready = 1'b1;
+                        ex_data_o = id_data_in;
+                    end
+                    else 
+                    begin
+                        ex_data_ready = 1'b0;
+                        trace_element = id_data_in;
+                        trace_element.ex_data.time_start = counter;
+                        next = EX_START;
+                    end
+                end
+            end
+            EX_START:
+            begin
+                if(ex_ready)
+                begin
+                    trace_element.ex_data.time_end = counter;
+                    trace_element.pass_through = 1'b1;
+                    ex_data_ready = 1'b1;
+                    ex_data_o = trace_element;
+                    next = READY;
+                end
+                else if (data_req_i) 
+                begin
+                    next = WAIT_GNT;
+                    trace_element.ex_data.mem_access_req.time_start = counter;
+                end
+            end
+            WAIT_GNT:
+            begin
+                if (data_gnt_i)
+                begin
+                    trace_element.ex_data.mem_access_req.time_end = counter;
+                    trace_element.ex_data.time_end = counter;
+                    ex_data_ready = 1'b1;
+                    ex_data_o = trace_element;
+                    next = READY;
+                end
+            end
+        endcase
+    end
          
     // Reset Behaviour
  
@@ -61,6 +110,7 @@ module ex_tracker
     begin
         state <= READY;
         next <= READY;
+        ex_data_ready <= 0;
     end
     endtask
 

@@ -97,7 +97,7 @@ module if_tracker
                 begin
                     trace_element.addr <= instr_addr;
                     trace_element.if_data.mem_access_req.time_end <= counter;
-                    trace_element.if_data.mem_access_data.time_start <= counter;
+                    trace_element.if_data.mem_access_res.time_start <= counter;
                     next <= WAIT_RVALID;
                 end
             end
@@ -107,7 +107,7 @@ module if_tracker
                 begin
                     trace_element.instruction = instr_rdata;
                     trace_element.if_data.time_end = counter;
-                    trace_element.if_data.mem_access_data.time_end = counter;
+                    trace_element.if_data.mem_access_res.time_end = counter;
                     if_data_o = trace_element;
                     if_data_ready = 1'b1;
                     if (if_ready) next <= SUB_ACCESS;
@@ -123,6 +123,7 @@ module if_tracker
         begin
             state <= SLEEP;
             next <= SLEEP;
+            if_data_ready <= 0;
         end
     endtask
 

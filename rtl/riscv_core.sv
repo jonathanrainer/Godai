@@ -89,7 +89,8 @@ module riscv_core
   output logic if_busy_o,
   output logic if_ready_o,
   output logic is_decoding_o,
-  output logic jump_done_o
+  output logic jump_done_o,
+  output logic ex_ready_o
 );
 
   localparam N_HWLP      = 2;
@@ -937,11 +938,12 @@ module riscv_core
   );
 `endif
 
-    always @(if_busy, if_ready, is_decoding)
+    always @(if_busy, if_ready, is_decoding, ex_ready)
     begin
         if_busy_o = if_busy;
         if_ready_o = if_ready;
         is_decoding_o = is_decoding;
+        ex_ready_o = ex_ready;
     end
 
 endmodule
