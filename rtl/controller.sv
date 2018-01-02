@@ -126,7 +126,10 @@ module riscv_controller
   // Performance Counters
   output logic        perf_jump_o,                // we are executing a jump instruction   (j, jr, jal, jalr)
   output logic        perf_jr_stall_o,            // stall due to jump-register-hazard
-  output logic        perf_ld_stall_o             // stall due to load-use-hazard
+  output logic        perf_ld_stall_o,            // stall due to load-use-hazard
+  
+  // Tracing Outputs
+  output logic        jump_done_o
 );
 
   // FSM state encoding
@@ -591,5 +594,10 @@ module riscv_controller
   // possible without branch prediction in the IF stage
   assert property (
     @(posedge clk) (branch_taken_ex_i) |=> (~branch_taken_ex_i) ) else $warning("Two branches back-to-back are taken");
+
+    always @(jump_done)
+    begin
+        jump_done_o = jump_done;
+    end
 
 endmodule // controller

@@ -24,6 +24,7 @@ module trace_unit
     // ID Register Ports
     
     input logic is_decoding,
+    input logic jump_done,
 
     output logic trace_data_ready,
     output trace_output trace_data_o

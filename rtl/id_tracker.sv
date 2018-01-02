@@ -18,6 +18,7 @@ module id_tracker
     
     // Inputs from ID Pipeline Stage
     input logic is_decoding,
+    input logic jump_done,
     
     // Outputs to EX Tracker
     output trace_output id_data_out
@@ -49,11 +50,13 @@ module id_tracker
                 if (is_decoding)
                 begin
                     trace_element.id_data.time_start <= counter;
+                    check_jump();
                     next <= DECODE_END;
                 end
             end
             DECODE_END:
             begin
+                check_jump();
                 if (!is_decoding)
                 begin
                     trace_element.id_data.time_end = counter;
@@ -87,6 +90,15 @@ module id_tracker
     end
     endtask
     
-             
-
+    task check_jump();
+    begin
+        if (jump_done)
+        begin
+            trace_element.pass_through <= 1'b1;
+            trace_element.ex_data <= '{default:0};
+            trace_element.wb_data <= '{default:0};    
+        end
+    end
+    endtask
+    
 endmodule 

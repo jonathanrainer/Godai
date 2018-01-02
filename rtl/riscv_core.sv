@@ -88,7 +88,8 @@ module riscv_core
   // Extra Tracing Ports
   output logic if_busy_o,
   output logic if_ready_o,
-  output logic is_decoding_o
+  output logic is_decoding_o,
+  output logic jump_done_o
 );
 
   localparam N_HWLP      = 2;
@@ -539,7 +540,10 @@ module riscv_core
     // Performance Counters
     .perf_jump_o                  ( perf_jump            ),
     .perf_jr_stall_o              ( perf_jr_stall        ),
-    .perf_ld_stall_o              ( perf_ld_stall        )
+    .perf_ld_stall_o              ( perf_ld_stall        ),
+    
+    // Tracing Output
+    .jump_done_o                  (jump_done_o           )
   );
 
 

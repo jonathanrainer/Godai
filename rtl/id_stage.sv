@@ -196,7 +196,10 @@ module riscv_id_stage
     // Performance Counters
     output logic        perf_jump_o,          // we are executing a jump instruction
     output logic        perf_jr_stall_o,      // jump-register-hazard
-    output logic        perf_ld_stall_o       // load-use-hazard
+    output logic        perf_ld_stall_o,      // load-use-hazard
+    
+    // Tracing Outputs
+    output logic        jump_done_o
 );
 
   logic [31:0] instr;
@@ -926,7 +929,10 @@ module riscv_id_stage
     // Performance Counters
     .perf_jump_o                    ( perf_jump_o            ),
     .perf_jr_stall_o                ( perf_jr_stall_o        ),
-    .perf_ld_stall_o                ( perf_ld_stall_o        )
+    .perf_ld_stall_o                ( perf_ld_stall_o        ),
+    
+    // Tracing Outputs
+    .jump_done_o                    ( jump_done_o)
   );
 
   ///////////////////////////////////////////////////////////////////////
