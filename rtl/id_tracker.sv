@@ -14,7 +14,7 @@ module id_tracker
 
     // Inputs from IF Tracker
     input logic if_data_ready,
-    input trace_output if_data_in,
+    input trace_output if_data_i,
     
     // Inputs from ID Pipeline Stage
     input logic is_decoding,
@@ -40,10 +40,10 @@ module id_tracker
         unique case(state)
             READY:
             begin
-                if (if_data_ready && trace_element.instruction != if_data_in.instruction)
+                if (if_data_ready && trace_element.instruction != if_data_i.instruction)
                 begin
                     id_data_ready = 1'b0;
-                    trace_element = if_data_in;
+                    trace_element = if_data_i;
                     next <= DECODE_START;
                 end
             end

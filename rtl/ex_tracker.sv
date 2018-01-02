@@ -14,7 +14,7 @@ module ex_tracker
 
     // Inputs from ID Tracker
     input logic id_data_ready,
-    input trace_output id_data_in,
+    input trace_output id_data_i,
     
     // Inputs from EX Pipelining Stage
     input logic ex_ready,
@@ -48,17 +48,17 @@ module ex_tracker
         unique case(state)
             READY:
             begin
-                if (id_data_ready && id_data_in.instruction != trace_element.instruction)
+                if (id_data_ready && id_data_i.instruction != trace_element.instruction)
                 begin
-                    if (id_data_in.pass_through)
+                    if (id_data_i.pass_through)
                     begin
                         ex_data_ready = 1'b1;
-                        ex_data_o = id_data_in;
+                        ex_data_o = id_data_i;
                     end
                     else 
                     begin
                         ex_data_ready = 1'b0;
-                        trace_element = id_data_in;
+                        trace_element = id_data_i;
                         trace_element.ex_data.time_start = counter;
                         next = EX_START;
                     end
