@@ -3,36 +3,36 @@
 package ryuki_datatypes;
 
     typedef struct packed {
-        integer time_start;
-        integer time_end;
+        bit[31:0] time_start;
+        bit[31:0] time_end;
     } mem_access_req;
     
     typedef struct packed {
-            integer time_start;
-            integer time_end;        
+            bit[31:0] time_start;
+            bit[31:0] time_end;        
     } mem_access_res;
 
     typedef struct packed {
-        integer time_start;
-        integer time_end;
+        bit[31:0] time_start;
+        bit[31:0] time_end;
         mem_access_req mem_access_req;
         mem_access_res mem_access_res;
     } IF_data;
     
     typedef struct packed {
-        integer time_start;
-        integer time_end;
+        bit[31:0] time_start;
+        bit[31:0] time_end;
     } ID_data;
     
     typedef struct packed {
-        integer time_start;
-        integer time_end;
+        bit[31:0] time_start;
+        bit[31:0] time_end;
         mem_access_req mem_access_req;
     } EX_data;
     
     typedef struct packed {
-        integer time_start;
-        integer time_end;
+        bit[31:0] time_start;
+        bit[31:0] time_end;
         mem_access_res mem_access_res;
     } WB_data;
     
