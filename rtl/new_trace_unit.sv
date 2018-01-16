@@ -3,7 +3,8 @@ import ryuki_datatypes::trace_output;
 module trace_unit
 #(
     parameter ADDR_WIDTH = 32,
-    parameter DATA_WIDTH = 32
+    parameter DATA_WIDTH = 32,
+    parameter PROCESSING_QUEUE_LENGTH = 4
 )
 (
     input logic clk,

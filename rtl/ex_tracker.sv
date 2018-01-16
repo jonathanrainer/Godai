@@ -3,7 +3,8 @@ import ryuki_datatypes::trace_output;
 module ex_tracker
 #(
     parameter ADDR_WIDTH = 32,
-    parameter DATA_WIDTH = 32
+    parameter DATA_WIDTH = 32,
+    parameter PROCESSING_QUEUE_LENGTH = 4
 )
 (
     input logic clk,
@@ -26,14 +27,19 @@ module ex_tracker
     output trace_output ex_data_o,
     output logic ex_data_ready
 );
-    
+    // Start of Queue Marker
+    bit [2:0] start_queue_loc = 3'b0;
+    // End of Queue Marker
+    bit [2:0] next_queue_loc = 3'b0;
+    // Queue of events to process
+    trace_output [PROCESSING_QUEUE_LENGTH-1:0] processing_queue;
     // Trace Element to Build up
     trace_output trace_element;
     
     // State Machine to Control Unit
     enum logic [1:0] {
-            READY =         2'b00,
-            EX_START =      2'b01,
+            EX_START =      2'b00,
+            EX_END =        2'b01,
             WAIT_GNT =      2'b10
          } state, next;
          
@@ -46,39 +52,32 @@ module ex_tracker
     begin
         state = next;
         unique case(state)
-            READY:
+            EX_START:
             begin
-                if (id_data_ready && id_data_i.instruction != trace_element.instruction)
+                if (next_queue_loc != start_queue_loc)
                 begin
-                    if (id_data_i.pass_through)
+                    ex_data_ready = 1'b0;
+                    trace_element = processing_queue[start_queue_loc];
+                    start_queue_loc++;
+                    trace_element.ex_data.time_start = counter;
+                    if(ex_ready) 
                     begin
-                        ex_data_ready = 1'b1;
-                        ex_data_o = id_data_i;
+                        next = EX_END;
                     end
-                    else 
+                    else if (data_req_i) 
                     begin
-                        ex_data_ready = 1'b0;
-                        trace_element = id_data_i;
-                        trace_element.ex_data.time_start = counter;
-                        next = EX_START;
+                        next = WAIT_GNT;
+                        trace_element.ex_data.mem_access_req.time_start = counter;
                     end
                 end
             end
-            EX_START:
+            EX_END:
             begin
-                if(ex_ready)
-                begin
-                    trace_element.ex_data.time_end = counter;
-                    trace_element.pass_through = 1'b1;
-                    ex_data_ready = 1'b1;
-                    ex_data_o = trace_element;
-                    next = READY;
-                end
-                else if (data_req_i) 
-                begin
-                    next = WAIT_GNT;
-                    trace_element.ex_data.mem_access_req.time_start = counter;
-                end
+                trace_element.ex_data.time_end = counter;
+                trace_element.pass_through = 1'b1;
+                ex_data_ready = 1'b1;
+                ex_data_o = trace_element;
+                next = EX_START;
             end
             WAIT_GNT:
             begin
@@ -88,7 +87,7 @@ module ex_tracker
                     trace_element.ex_data.time_end = counter;
                     ex_data_ready = 1'b1;
                     ex_data_o = trace_element;
-                    next = READY;
+                    next = EX_START;
                 end
             end
         endcase
@@ -104,13 +103,40 @@ module ex_tracker
         end
     end 
     
+    // Data Capture case
+    
+    always @(id_data_ready)
+        begin
+            if (id_data_ready)
+            begin
+                if(next_queue_loc == start_queue_loc)
+                begin
+                    next_queue_loc = 3'b0;
+                    start_queue_loc = 3'b0;
+                end
+                if (id_data_i.pass_through)
+                begin
+                    ex_data_ready = 1'b1;
+                    ex_data_o = id_data_i;
+                end
+                else
+                begin
+                    processing_queue[next_queue_loc] = id_data_i;
+                    next_queue_loc++;
+                end
+            end
+        end
+    
     // Initialise the whole trace unit
     
     task initialise_device();
     begin
-        state <= READY;
-        next <= READY;
+        state <= EX_START;
+        next <= EX_START;
         ex_data_ready <= 0;
+        processing_queue <= '{default:0};
+        start_queue_loc <= 0;
+        next_queue_loc <= 0;
     end
     endtask
 

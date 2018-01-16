@@ -33,12 +33,11 @@ module if_tracker
     // Trace buffer itself
     trace_output trace_element;
     // IF Pipeline Stage State Machine
-    enum logic [2:0] {
-        SLEEP =         3'b000,
-        FIRST_ACCESS =  3'b001,
-        SUB_ACCESS =    3'b010,
-        WAIT_GNT =      3'b011,
-        WAIT_RVALID =   3'b100
+    enum logic [1:0] {
+        SLEEP =             2'b00,
+        DEASSERT_READY =    2'b01,
+        WAIT_GNT =          2'b10,
+        WAIT_RVALID =       2'b11
      } state, next;
 
 
@@ -72,24 +71,14 @@ module if_tracker
                     if_data_ready = 1'b0;
                     trace_element = '{default:0};
                     trace_element.if_data.time_start <= counter;
-                    next <= FIRST_ACCESS;
-                end
-            end
-            FIRST_ACCESS:
-            begin
-                if (instr_req)
-                begin
                     trace_element.if_data.mem_access_req.time_start <= counter;
                     next <= WAIT_GNT;
                 end
             end
-            SUB_ACCESS:
+            DEASSERT_READY:
             begin
-                if_data_ready = 1'b0;
-                trace_element = '{default:0};
-                trace_element.if_data.time_start <= counter;
-                trace_element.if_data.mem_access_req.time_start <= counter;
-                next <= WAIT_GNT;
+               if_data_ready = 1'b0;
+               next = WAIT_GNT;
             end
             WAIT_GNT:
             begin
@@ -110,8 +99,14 @@ module if_tracker
                     trace_element.if_data.mem_access_res.time_end = counter;
                     if_data_o = trace_element;
                     if_data_ready = 1'b1;
-                    if (if_ready) next <= SUB_ACCESS;
-                    else next <= SLEEP;
+                    if (if_ready) 
+                    begin
+                        trace_element = '{default:0};
+                        trace_element.if_data.time_start <= counter;
+                        trace_element.if_data.mem_access_req.time_start <= counter;
+                        next <= DEASSERT_READY;
+                    end
+                    else next = SLEEP;
                 end
             end
         endcase

@@ -3,7 +3,8 @@ import ryuki_datatypes::trace_output;
 module id_tracker
 #(
     parameter ADDR_WIDTH = 32,
-    parameter DATA_WIDTH = 32
+    parameter DATA_WIDTH = 32,
+    parameter PROCESSING_QUEUE_LENGTH = 4
 )
 (
     input logic clk,
@@ -24,35 +25,33 @@ module id_tracker
     output trace_output id_data_o,
     output logic id_data_ready
 );
-
+    // Start of Queue Marker
+    bit [2:0] start_queue_loc = 3'b0;
+    // End of Queue Marker
+    bit [2:0] next_queue_loc = 3'b0;
+    // Queue of events to process
+    trace_output [PROCESSING_QUEUE_LENGTH-1:0] processing_queue;
     // Space to hold trace element being constructed
     trace_output trace_element;
     // IF Pipeline Stage State Machine
-    enum logic [1:0] {
-        READY =         2'b00,
-        DECODE_START =  2'b01,
-        DECODE_END =    2'b10
+    enum logic  {
+        DECODE_START =  1'b0,
+        DECODE_END =    1'b1
      } state, next;
 
     always @(posedge clk)
     begin
         state = next;
         unique case(state)
-            READY:
-            begin
-                if (if_data_ready && trace_element.instruction != if_data_i.instruction)
-                begin
-                    id_data_ready = 1'b0;
-                    trace_element = if_data_i;
-                    next <= DECODE_START;
-                end
-            end
             DECODE_START:
             begin
-                if (is_decoding)
+                if (is_decoding && next_queue_loc != 0)
                 begin
+                    trace_element = processing_queue[start_queue_loc];
+                    start_queue_loc++;
                     trace_element.id_data.time_start = counter;
                     check_jump();
+                    id_data_ready = 1'b0;
                     next <= DECODE_END;
                 end
             end
@@ -64,7 +63,7 @@ module id_tracker
                     trace_element.id_data.time_end = counter;
                     id_data_o = trace_element;
                     id_data_ready = 1'b1;
-                    next <= READY;
+                    next <= DECODE_START;
                 end
             end
         endcase
@@ -78,6 +77,20 @@ module id_tracker
         end
     end
     
+    always @(if_data_ready)
+    begin
+        if (if_data_ready)
+        begin
+            if(next_queue_loc == start_queue_loc)
+            begin
+                next_queue_loc = 3'b0;
+                start_queue_loc = 3'b0;
+            end
+            processing_queue[next_queue_loc] = if_data_i;
+            next_queue_loc++;
+        end
+    end
+    
     initial
     begin
         initialise_module();
@@ -85,9 +98,12 @@ module id_tracker
     
     task initialise_module();
     begin
-        state <= READY;
-        next <= READY;
+        state <= DECODE_START;
+        next <= DECODE_START;
         id_data_ready <= 0;
+        processing_queue <= '{default:0};
+        start_queue_loc <= 0;
+        next_queue_loc <= 0;
     end
     endtask
     
@@ -97,10 +113,9 @@ module id_tracker
         begin
             trace_element.pass_through <= 1'b1;
             trace_element.ex_data <= '{default:0};
-            trace_element.wb_data <= '{default:0};    
+            trace_element.wb_data <= '{default:0};  
         end
     end
     endtask
-    
     
 endmodule 

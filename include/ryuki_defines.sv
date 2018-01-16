@@ -7,3 +7,6 @@
 `ifndef NUM_WORDS
 `define NUM_WORDS 16192
 `endif
+`ifndef PROCESSING_QUEUE_LENGTH
+`define PROCESSING_QUEUE_LENGTH 4
+`endif 
