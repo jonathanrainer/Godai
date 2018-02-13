@@ -17,6 +17,9 @@ module ex_tracker
     input logic id_data_ready,
     input trace_output id_data_i,
     
+    // Inputs from ID Pipelining Stage
+    input logic data_req_id,
+    
     // Inputs from EX Pipelining Stage
     input logic ex_ready,
     input logic                    data_req_i,
@@ -27,20 +30,15 @@ module ex_tracker
     output trace_output ex_data_o,
     output logic ex_data_ready
 );
-    // Start of Queue Marker
-    bit [2:0] start_queue_loc = 3'b0;
-    // End of Queue Marker
-    bit [2:0] next_queue_loc = 3'b0;
-    // Queue of events to process
-    trace_output [PROCESSING_QUEUE_LENGTH-1:0] processing_queue;
+
     // Trace Element to Build up
     trace_output trace_element;
     
     // State Machine to Control Unit
     enum logic [1:0] {
-            EX_START =      2'b00,
-            EX_END =        2'b01,
-            WAIT_GNT =      2'b10
+            EX_START =              2'b00,
+            SINGLE_CYCLE_CHECK =    2'b01,
+            WAIT_GNT =              2'b10
          } state, next;
          
     initial
@@ -54,30 +52,38 @@ module ex_tracker
         unique case(state)
             EX_START:
             begin
-                if (next_queue_loc != start_queue_loc)
+                if (id_data_ready)
                 begin
-                    ex_data_ready = 1'b0;
-                    trace_element = processing_queue[start_queue_loc];
-                    start_queue_loc++;
-                    trace_element.ex_data.time_start = counter;
-                    if(ex_ready) 
+                    if (id_data_i.pass_through)
                     begin
-                        next = EX_END;
+                        ex_data_ready = 1'b1;
+                        ex_data_o = id_data_i;
+                        next = EX_START;
                     end
-                    else if (data_req_i) 
+                    else
                     begin
-                        next = WAIT_GNT;
-                        trace_element.ex_data.mem_access_req.time_start = counter;
+                        ex_data_ready = 1'b0;
+                        trace_element = id_data_i;
+                        next = SINGLE_CYCLE_CHECK;
                     end
                 end
+                else ex_data_ready = 1'b0;
             end
-            EX_END:
+            SINGLE_CYCLE_CHECK:
             begin
-                trace_element.ex_data.time_end = counter;
-                trace_element.pass_through = 1'b1;
-                ex_data_ready = 1'b1;
-                ex_data_o = trace_element;
-                next = EX_START;
+                trace_element.ex_data.time_start = counter;
+                if (data_req_i) 
+                begin
+                    trace_element.ex_data.mem_access_req.time_start = counter;
+                    next = WAIT_GNT;
+                end 
+                else if (ex_ready)
+                begin
+                    trace_element.ex_data.time_end = counter;
+                    ex_data_o = trace_element;
+                    ex_data_ready = 1'b1;
+                    next = EX_START;
+                end
             end
             WAIT_GNT:
             begin
@@ -103,29 +109,6 @@ module ex_tracker
         end
     end 
     
-    // Data Capture case
-    
-    always @(id_data_ready)
-        begin
-            if (id_data_ready)
-            begin
-                if(next_queue_loc == start_queue_loc)
-                begin
-                    next_queue_loc = 3'b0;
-                    start_queue_loc = 3'b0;
-                end
-                if (id_data_i.pass_through)
-                begin
-                    ex_data_ready = 1'b1;
-                    ex_data_o = id_data_i;
-                end
-                else
-                begin
-                    processing_queue[next_queue_loc] = id_data_i;
-                    next_queue_loc++;
-                end
-            end
-        end
     
     // Initialise the whole trace unit
     
@@ -134,9 +117,6 @@ module ex_tracker
         state <= EX_START;
         next <= EX_START;
         ex_data_ready <= 0;
-        processing_queue <= '{default:0};
-        start_queue_loc <= 0;
-        next_queue_loc <= 0;
     end
     endtask
 

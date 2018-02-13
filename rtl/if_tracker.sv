@@ -68,8 +68,8 @@ module if_tracker
             begin
                 if (if_busy)
                 begin
-                    if_data_ready = 1'b0;
-                    trace_element = '{default:0};
+                    if_data_ready <= 1'b0;
+                    trace_element <= '{default:0};
                     trace_element.if_data.time_start <= counter;
                     trace_element.if_data.mem_access_req.time_start <= counter;
                     next <= WAIT_GNT;
@@ -77,8 +77,8 @@ module if_tracker
             end
             DEASSERT_READY:
             begin
-               if_data_ready = 1'b0;
-               next = WAIT_GNT;
+               if_data_ready <= 1'b0;
+               next <= WAIT_GNT;
             end
             WAIT_GNT:
             begin
@@ -98,15 +98,15 @@ module if_tracker
                     trace_element.if_data.time_end = counter;
                     trace_element.if_data.mem_access_res.time_end = counter;
                     if_data_o = trace_element;
-                    if_data_ready = 1'b1;
-                    if (if_ready) 
+                    if_data_ready <= 1'b1;
+                    if (instr_req) 
                     begin
                         trace_element = '{default:0};
-                        trace_element.if_data.time_start <= counter;
-                        trace_element.if_data.mem_access_req.time_start <= counter;
+                        trace_element.if_data.time_start = counter;
+                        trace_element.if_data.mem_access_req.time_start = counter;
                         next <= DEASSERT_READY;
                     end
-                    else next = SLEEP;
+                    else next <= SLEEP;
                 end
             end
         endcase

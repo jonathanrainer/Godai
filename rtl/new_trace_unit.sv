@@ -24,12 +24,18 @@ module trace_unit
     
     // ID Register Ports
     
+    input logic id_ready,
     input logic is_decoding,
     input logic jump_done,
+    input logic data_req_id,
     
     // EX Register Ports
     
     input logic ex_ready,
+    
+    // WB Register ports
+    
+    input logic wb_ready,
     
     // Data Memory Ports
     
@@ -54,9 +60,9 @@ module trace_unit
     trace_output ex_data_o;
 
     if_tracker if_tr (.*);
-    id_tracker id_tr (.if_data_i(if_data_o), .*);
-    ex_tracker ex_tr (.id_data_i(id_data_o), .*);
-    wb_tracker wb_tr (.ex_data_i(ex_data_o), .wb_data_o(trace_data_o), .*);
+    id_tracker #(ADDR_WIDTH, DATA_WIDTH, PROCESSING_QUEUE_LENGTH) id_tr(.if_data_i(if_data_o), .*);
+    ex_tracker #(ADDR_WIDTH, DATA_WIDTH, PROCESSING_QUEUE_LENGTH) ex_tr(.id_data_i(id_data_o), .*);
+    wb_tracker #(ADDR_WIDTH, DATA_WIDTH, PROCESSING_QUEUE_LENGTH) wb_tr(.ex_data_i(ex_data_o), .wb_data_o(trace_data_o), .*);
 
     initial
     begin
@@ -77,7 +83,7 @@ module trace_unit
 
     always @(posedge clk)
     begin
-        counter = counter + 1;
+        counter <= counter + 1;
     end
 
     // Initialise the whole trace unit

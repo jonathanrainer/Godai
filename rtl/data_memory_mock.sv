@@ -1,25 +1,3 @@
-`timescale 1ns / 1ps
-//////////////////////////////////////////////////////////////////////////////////
-// Company: 
-// Engineer: 
-// 
-// Create Date: 09/19/2017 02:43:07 PM
-// Design Name: 
-// Module Name: instruction_memory
-// Project Name: 
-// Target Devices: 
-// Tool Versions: 
-// Description: 
-// 
-// Dependencies: 
-// 
-// Revision:
-// Revision 0.01 - File Created
-// Additional Comments:
-// 
-//////////////////////////////////////////////////////////////////////////////////
-
-
 module data_memory
   #(
     parameter ADDR_WIDTH = 8,
@@ -116,7 +94,8 @@ module data_memory
             rdata_o = mem[addr];
             if (delay_counter < read_limit) delay_counter++;
             else 
-            begin    
+            begin
+                delay_counter = 0;    
                 rvalid_o = 1;
                 Next = SLEEP;
             end

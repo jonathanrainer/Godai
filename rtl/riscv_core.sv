@@ -88,9 +88,12 @@ module riscv_core
   // Extra Tracing Ports
   output logic if_busy_o,
   output logic if_ready_o,
+  output logic id_ready_o,
   output logic is_decoding_o,
+  output logic data_req_id_o,
   output logic jump_done_o,
-  output logic ex_ready_o
+  output logic ex_ready_o,
+  output logic wb_ready_o
 );
 
   localparam N_HWLP      = 2;
@@ -544,7 +547,8 @@ module riscv_core
     .perf_ld_stall_o              ( perf_ld_stall        ),
     
     // Tracing Output
-    .jump_done_o                  (jump_done_o           )
+    .jump_done_o                  (jump_done_o           ),
+    .data_req_id                  (data_req_id_o         )
   );
 
 
@@ -938,12 +942,14 @@ module riscv_core
   );
 `endif
 
-    always @(if_busy, if_ready, is_decoding, ex_ready)
+    always_comb
     begin
         if_busy_o = if_busy;
         if_ready_o = if_ready;
+        id_ready_o = id_ready;
         is_decoding_o = is_decoding;
         ex_ready_o = ex_ready;
+        wb_ready_o = lsu_ready_wb;
     end
 
 endmodule

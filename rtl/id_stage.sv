@@ -199,7 +199,8 @@ module riscv_id_stage
     output logic        perf_ld_stall_o,      // load-use-hazard
     
     // Tracing Outputs
-    output logic        jump_done_o
+    output logic        jump_done_o,
+    output logic        data_req_id
 );
 
   logic [31:0] instr;
