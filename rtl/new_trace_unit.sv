@@ -3,8 +3,7 @@ import ryuki_datatypes::trace_output;
 module trace_unit
 #(
     parameter ADDR_WIDTH = 32,
-    parameter DATA_WIDTH = 32,
-    parameter PROCESSING_QUEUE_LENGTH = 4
+    parameter DATA_WIDTH = 32
 )
 (
     input logic clk,
@@ -60,9 +59,9 @@ module trace_unit
     trace_output ex_data_o;
 
     if_tracker if_tr (.*);
-    id_tracker #(ADDR_WIDTH, DATA_WIDTH, PROCESSING_QUEUE_LENGTH) id_tr(.if_data_i(if_data_o), .*);
-    ex_tracker #(ADDR_WIDTH, DATA_WIDTH, PROCESSING_QUEUE_LENGTH) ex_tr(.id_data_i(id_data_o), .*);
-    wb_tracker #(ADDR_WIDTH, DATA_WIDTH, PROCESSING_QUEUE_LENGTH) wb_tr(.ex_data_i(ex_data_o), .wb_data_o(trace_data_o), .*);
+    id_tracker #(ADDR_WIDTH, DATA_WIDTH, 5) id_tr(.if_data_i(if_data_o), .*);
+    ex_tracker #(ADDR_WIDTH, DATA_WIDTH) ex_tr(.id_data_i(id_data_o), .*);
+    wb_tracker #(ADDR_WIDTH, DATA_WIDTH) wb_tr(.ex_data_i(ex_data_o), .wb_data_o(trace_data_o), .*);
 
     initial
     begin

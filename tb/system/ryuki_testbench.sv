@@ -96,9 +96,9 @@ module ryuki_testbench;
     
     riscv_core  #(1, `DATA_WIDTH) core(.*);
     
-    trace_unit #(`ADDR_WIDTH, `DATA_WIDTH, `PROCESSING_QUEUE_LENGTH) tracer(clk_i, rst_ni, if_busy_o, if_ready_o,
-    instr_req_o, instr_addr_o, instr_gnt_i,  instr_rvalid_i, instr_rdata_i, id_ready_o, is_decoding_o, jump_done_o
-    , data_req_id_o, ex_ready_o, wb_ready_o, data_req_o, data_addr_o, data_gnt_i, data_rvalid_i, trace_ready, trace_o);
+    trace_unit #(`ADDR_WIDTH, `DATA_WIDTH) tracer(clk_i, rst_ni, if_busy_o, if_ready_o,
+    instr_req_o, instr_addr_o, instr_gnt_i,  instr_rvalid_i, instr_rdata_i, id_ready_o, jump_done_o,
+    ex_ready_o, wb_ready_o, data_req_o, data_addr_o, data_gnt_i, data_rvalid_i, trace_ready, trace_o);
     
     initial
         begin

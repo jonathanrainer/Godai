@@ -4,7 +4,7 @@ module id_tracker
 #(
     parameter ADDR_WIDTH = 32,
     parameter DATA_WIDTH = 32,
-    parameter PROCESSING_QUEUE_LENGTH = 4
+    parameter BUFFER_LENGTH = 5
 )
 (
     input logic clk,
@@ -15,7 +15,6 @@ module id_tracker
 
     // Inputs from IF Tracker
     input logic if_data_ready,
-    input logic is_decoding,
     input trace_output if_data_i,
     
     // Inputs from ID Pipeline Stage
@@ -35,37 +34,33 @@ module id_tracker
         SINGLE_CYCLE_CHECK = 2'b01,
         DECODE_END =    2'b10
      } state, next;
-    bit data_available = 1'b0;
-
+     
+    // id_ready buffer and pointers
+    bit id_ready_buffer [BUFFER_LENGTH-1:0];
+    bit [$clog2(BUFFER_LENGTH):0] id_ready_front; 
+    bit signed [$clog2(BUFFER_LENGTH):0] id_ready_rear;
+    
+    // jump_done buffer and pointers
+    bit jump_done_buffer [BUFFER_LENGTH-1:0];
+    bit [$clog2(BUFFER_LENGTH):0] jump_done_front; 
+    bit signed [$clog2(BUFFER_LENGTH):0] jump_done_rear;
+     
     always @(posedge clk)
     begin
         state = next;
         unique case(state)
             DECODE_START:
             begin
-                if (if_data_ready || data_available)
+                if (if_data_ready)
                 begin
-                    data_available = 1'b0;
                     id_data_ready = 1'b0;
                     trace_element = if_data_i;
+                    find_start_time();
                     check_jump();
-                    next = SINGLE_CYCLE_CHECK;
+                    if (trace_element.id_data.time_end == 0) next = DECODE_END;
+                    else next = DECODE_START;
                 end
                 else id_data_ready = 1'b0;
-            end
-            SINGLE_CYCLE_CHECK:
-            begin
-                id_data_ready = 1'b0;
-                trace_element.id_data.time_start = counter;
-                if (id_ready)
-                begin
-                    trace_element.id_data.time_end = counter;
-                    check_jump();
-                    id_data_o = trace_element;
-                    id_data_ready = 1'b1;
-                    next = DECODE_START;
-                end
-                else next = DECODE_END;
             end
             DECODE_END:
             begin
@@ -75,14 +70,22 @@ module id_tracker
                     trace_element.id_data.time_end = counter - 1;
                     id_data_o = trace_element;
                     id_data_ready = 1'b1;
-                    if (if_data_ready)
-                    begin
-                        data_available = 1'b1;
-                    end
                     next = DECODE_START;
                 end
             end
         endcase
+    end
+    
+    always @(negedge clk)
+    begin
+        // Track the id_ready signal changes
+        id_ready_rear = (id_ready_rear + 1) % BUFFER_LENGTH;
+        id_ready_buffer[id_ready_rear] = id_ready;
+        if (id_ready_rear == id_ready_front) id_ready_front = (id_ready_front + 1) % BUFFER_LENGTH;
+        // Track the jump_done signal changes
+        jump_done_rear = (jump_done_rear + 1) % BUFFER_LENGTH;
+        jump_done_buffer[jump_done_rear] = jump_done;
+        if (jump_done_rear == jump_done_front) jump_done_front = (jump_done_front + 1) % BUFFER_LENGTH;
     end
 
     always @(posedge rst)
@@ -103,12 +106,23 @@ module id_tracker
         state <= DECODE_START;
         next <= DECODE_START;
         id_data_ready <= 0;
+        id_ready_front <= 0;
+        id_ready_rear <= -1;
+        id_ready_buffer <= '{default:0};
     end
     endtask
     
     task check_jump();
     begin
-        if (jump_done)
+        automatic integer range_to_check = counter - trace_element.id_data.time_start;
+        automatic integer sig_location = jump_done_front - range_to_check;
+        automatic bit jumped = 1'b0;
+        if (sig_location < 0) sig_location = sig_location + BUFFER_LENGTH;
+        for (int i=sig_location; i < sig_location + range_to_check; i++)
+         begin
+            if (jump_done_buffer[i]) jumped = 1;
+         end
+        if (jumped)
         begin
             trace_element.pass_through = 1'b1;
             trace_element.ex_data = '{default:0};
@@ -116,5 +130,18 @@ module id_tracker
         end
     end
     endtask
+    
+    task find_start_time();
+    begin
+        automatic integer start_time = trace_element.if_data.time_end + 1;
+        automatic integer sig_location = id_ready_front - (counter - start_time);
+        if (sig_location < 0) sig_location = sig_location + BUFFER_LENGTH;
+        if (id_ready_buffer[sig_location])
+        begin
+            trace_element.id_data.time_start = start_time;
+        end
+    end
+    endtask
+        
     
 endmodule 
