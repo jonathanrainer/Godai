@@ -12,7 +12,6 @@ module if_tracker
     // IF Register ports
 
     input logic if_busy,
-    input logic if_ready,
 
     // Instruction Memory Ports
     input logic                     instr_req,
@@ -25,20 +24,23 @@ module if_tracker
     input integer counter,
 
     // Outputs
-    output logic if_data_ready,
+    output logic if_data_valid,
     output trace_output if_data_o
 
 );
 
     // Trace buffer itself
     trace_output trace_element;
+    // Space to cache results if further processing needs to happen
+    integer cached_counter = -1;
+    // Flag to indicate if data is ready to be sent or not
+    bit data_ready = 0;
     // IF Pipeline Stage State Machine
     enum logic [1:0] {
-        SLEEP =             2'b00,
-        DEASSERT_READY =    2'b01,
-        WAIT_GNT =          2'b10,
-        WAIT_RVALID =       2'b11
-     } state, next;
+        START =             2'b00,
+        WAIT_GNT =          2'b01,
+        WAIT_RVALID =       2'b10
+     } state;
 
 
     // Initial behaviour
@@ -60,65 +62,73 @@ module if_tracker
 
     // Creation of record to track instruction's responsibility
 
-    always @(posedge clk)
+    always_ff @(posedge clk)
     begin
-        state = next;
-        unique case (state)
-            SLEEP:
+    unique case (state)
+        START:
+        begin
+            if (data_ready)
             begin
-                if (if_busy)
+                if_data_o <= trace_element;
+                if_data_valid <= 1;
+                data_ready <= 0;
+            end
+            if (if_busy)
+            begin
+                trace_element <= '{default:0};
+                if (cached_counter != -1)
                 begin
-                    if_data_ready <= 1'b0;
-                    trace_element <= '{default:0};
+                    trace_element.if_data.time_start <= cached_counter;
+                    trace_element.if_data.mem_access_req.time_start <= cached_counter;
+                    cached_counter <= -1;
+                end
+                else
+                begin
                     trace_element.if_data.time_start <= counter;
                     trace_element.if_data.mem_access_req.time_start <= counter;
-                    next <= WAIT_GNT;
-                end
+                end 
+                state <= WAIT_GNT;
             end
-            DEASSERT_READY:
+        end
+        WAIT_GNT:
+        begin
+            if (instr_grant)
             begin
-               if_data_ready <= 1'b0;
-               next <= WAIT_GNT;
+                trace_element.addr <= instr_addr;
+                trace_element.if_data.mem_access_req.time_end <= counter;
+                trace_element.if_data.mem_access_res.time_start <= counter;
+                state <= WAIT_RVALID;
             end
-            WAIT_GNT:
+        end
+        WAIT_RVALID:
+        begin
+            if (instr_rvalid)
             begin
-                if (instr_grant)
+                trace_element.instruction <= instr_rdata;
+                trace_element.if_data.time_end <= counter;
+                trace_element.if_data.mem_access_res.time_end <= counter;
+                data_ready <= 1;
+                if (instr_req) 
                 begin
-                    trace_element.addr <= instr_addr;
-                    trace_element.if_data.mem_access_req.time_end <= counter;
-                    trace_element.if_data.mem_access_res.time_start <= counter;
-                    next <= WAIT_RVALID;
+                    cached_counter <= counter;
                 end
+                state <= START;
             end
-            WAIT_RVALID:
-            begin
-                if (instr_rvalid)
-                begin
-                    trace_element.instruction = instr_rdata;
-                    trace_element.if_data.time_end = counter;
-                    trace_element.if_data.mem_access_res.time_end = counter;
-                    if_data_o = trace_element;
-                    if_data_ready <= 1'b1;
-                    if (instr_req) 
-                    begin
-                        trace_element = '{default:0};
-                        trace_element.if_data.time_start = counter;
-                        trace_element.if_data.mem_access_req.time_start = counter;
-                        next <= DEASSERT_READY;
-                    end
-                    else next <= SLEEP;
-                end
-            end
-        endcase
-     end
+        end
+    endcase
+    end
+    
+    always_ff@(posedge clk)
+    begin
+        if (if_data_valid) if_data_valid <= 0;
+    end
 
     // Initialise the whole trace unit
 
     task initialise_device();
         begin
-            state <= SLEEP;
-            next <= SLEEP;
-            if_data_ready <= 0;
+            state <= START;
+            if_data_valid <= 0;
         end
     endtask
 

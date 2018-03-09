@@ -24,7 +24,6 @@ module trace_unit
     // ID Register Ports
     
     input logic id_ready,
-    input logic is_decoding,
     input logic jump_done,
     input logic data_req_id,
     
@@ -51,7 +50,7 @@ module trace_unit
 
     // Instantiate IF Tracker
     
-    logic if_data_ready;
+    logic if_data_valid;
     trace_output if_data_o;
     logic id_data_ready;
     trace_output id_data_o;
@@ -59,7 +58,7 @@ module trace_unit
     trace_output ex_data_o;
 
     if_tracker if_tr (.*);
-    id_tracker #(ADDR_WIDTH, DATA_WIDTH, 5) id_tr(.if_data_i(if_data_o), .*);
+    id_tracker #(ADDR_WIDTH, DATA_WIDTH, 8) id_tr(.if_data_i(if_data_o), .*);
     ex_tracker #(ADDR_WIDTH, DATA_WIDTH) ex_tr(.id_data_i(id_data_o), .*);
     wb_tracker #(ADDR_WIDTH, DATA_WIDTH) wb_tr(.ex_data_i(ex_data_o), .wb_data_o(trace_data_o), .*);
 
