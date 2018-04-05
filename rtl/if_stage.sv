@@ -90,6 +90,7 @@ module riscv_if_stage
     // misc signals
     output logic        if_busy_o,             // is the IF stage busy fetching instructions?
     output logic        perf_imiss_o           // Instruction Fetch Miss
+   
 );
 
   // offset FSM

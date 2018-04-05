@@ -22,6 +22,8 @@ package ryuki_datatypes;
     typedef struct packed {
         bit[31:0] time_start;
         bit[31:0] time_end;
+        bit[31:0] time_idle_start;
+        bit[31:0] time_idle_end;
     } ID_data;
     
     typedef struct packed {

@@ -200,7 +200,7 @@ module riscv_id_stage
     
     // Tracing Outputs
     output logic        jump_done_o,
-    output logic        data_req_id
+    output logic        illegal_insn_dec_o
 );
 
   logic [31:0] instr;
@@ -1207,5 +1207,10 @@ module riscv_id_stage
   // the instruction delivered to the ID stage should always be valid
   assert property (
     @(posedge clk) (instr_valid_i & (~illegal_c_insn_i)) |-> (!$isunknown(instr_rdata_i)) ) else $display("Instruction is valid, but has at least one X");
+
+    always @ (illegal_insn_dec)
+    begin
+        illegal_insn_dec_o = illegal_insn_dec;
+    end
 
 endmodule

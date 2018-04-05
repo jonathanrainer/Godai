@@ -25,7 +25,7 @@ module trace_unit
     
     input logic id_ready,
     input logic jump_done,
-    input logic data_req_id,
+    input logic is_decoding,
     
     // EX Register Ports
     
@@ -34,14 +34,7 @@ module trace_unit
     // WB Register ports
     
     input logic wb_ready,
-    
-    // Data Memory Ports
-    
-    input logic                    data_req_i,
-    input logic [ADDR_WIDTH-1:0]   data_addr_i,
-    input logic                    data_gnt_i,
-    input logic                    data_rvalid_i,
-
+   
     output logic trace_data_ready,
     output trace_output trace_data_o
 );

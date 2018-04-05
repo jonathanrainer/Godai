@@ -547,8 +547,7 @@ module riscv_core
     .perf_ld_stall_o              ( perf_ld_stall        ),
     
     // Tracing Output
-    .jump_done_o                  (jump_done_o           ),
-    .data_req_id                  (data_req_id_o         )
+    .jump_done_o                  (jump_done_o           )
   );
 
 

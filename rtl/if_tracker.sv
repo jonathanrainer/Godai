@@ -10,7 +10,6 @@ module if_tracker
     input logic rst,
 
     // IF Register ports
-
     input logic if_busy,
 
     // Instruction Memory Ports
@@ -26,7 +25,6 @@ module if_tracker
     // Outputs
     output logic if_data_valid,
     output trace_output if_data_o
-
 );
 
     // Trace buffer itself
