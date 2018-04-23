@@ -89,7 +89,10 @@ module riscv_if_stage
 
     // misc signals
     output logic        if_busy_o,             // is the IF stage busy fetching instructions?
-    output logic        perf_imiss_o           // Instruction Fetch Miss
+    output logic        perf_imiss_o,           // Instruction Fetch Miss
+    
+    // tracing output
+    output logic        illegal_instr_o
    
 );
 
@@ -388,5 +391,10 @@ module riscv_if_stage
   assert property (
     @(posedge clk) (req_i) |-> (~fetch_addr_n[0]) )
     else $warning("There was a request while the fetch_addr_n LSB is set");
+    
+   always_comb
+   begin
+        illegal_instr_o <= illegal_c_insn;
+   end
 
 endmodule

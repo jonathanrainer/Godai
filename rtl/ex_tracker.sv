@@ -19,6 +19,13 @@ module ex_tracker
     // Inputs from EX Pipelining Stage
     input logic ex_ready,
     
+    // Inputs from Memory Phase
+    input logic data_mem_req,
+    input logic data_mem_grant,
+    
+    // Inputs from WB Tracker for Previous End
+    input integer wb_previous_end_i,
+    
     // Outputs to EX Tracker
     output trace_output ex_data_o,
     output logic ex_data_ready
@@ -28,22 +35,43 @@ module ex_tracker
     trace_output trace_element;
     
     // State Machine to Control Unit
-    enum logic [2:0] {
-            EXECUTION_START =       3'b000,
-            GET_DATA_FROM_BUFFER =  3'b001,
-            CHECK_PAST_TIME =       3'b010,
-            RECHECK_GRANT =         3'b011,
-            OUTPUT_RESULT =         3'b100
+    enum logic [3:0] {
+            EXECUTION_START =       4'b0000,
+            GET_DATA_FROM_BUFFER =  4'b0001,
+            CHECK_MEMORY_REQS =     4'b0010,
+            CHECK_PAST_TIME =       4'b0011,
+            CHECK_GRANT =           4'b0100,
+            CHECK_START =           4'b0101,
+            CHECK_END =             4'b0110,
+            CHECK_MEMORY_STATUS =   4'b0111,
+            OUTPUT_RESULT =         4'b1000
          } state;
+         
+    integer previous_end_ex = 0;
+    integer previous_end_to_buffer = 0;
+    bit previous_end_memory = 0;
+    bit update_end = 0;
     
     integer ex_ready_value_in = 0;
     integer ex_ready_time_out [1:0] = {0,0};
-    bit recalculate_time = 1'b0;
-    signal_tracker  #(1, 8) ex_ready_buffer (
+    bit ex_ready_recalculate_time = 1'b0;
+    signal_tracker  #(1, 16) ex_ready_buffer (
         .clk(clk), .rst(rst), .counter(counter), .tracked_signal(ex_ready), .value_in(ex_ready_value_in),
-        .time_out(ex_ready_time_out), .recalculate_time(recalculate_time)
+        .time_out(ex_ready_time_out), .recalculate_time(ex_ready_recalculate_time),
+         .previous_end_i(previous_end_to_buffer), .update_end(update_end), .previous_end_memory(previous_end_memory)
         );
     logic ex_ready_present = 0;
+    
+    // Buffer to track Memory Accesses
+    integer data_mem_req_value_in = 0;
+    integer data_mem_req_time_out [1:0] = {0,0};
+    bit data_mem_req_recalculate_time = 1'b0;
+    signal_tracker  #(1, 16) data_mem_req_buffer (
+        .clk(clk), .rst(rst), .counter(counter), .tracked_signal(data_mem_req), .value_in(data_mem_req_value_in),
+        .time_out(data_mem_req_time_out), .recalculate_time(data_mem_req_recalculate_time), 
+        .previous_end_i(previous_end_to_buffer), .update_end(update_end), .previous_end_memory(previous_end_memory)
+        );
+    logic data_mem_req_present = 0;
     
     // Trace Buffer
      bit data_request = 1'b0;
@@ -73,7 +101,7 @@ module ex_tracker
                 if (data_present)
                 begin
                     data_request <= 1'b1;
-                    state = GET_DATA_FROM_BUFFER;
+                    state <= GET_DATA_FROM_BUFFER;
                 end
             end
             GET_DATA_FROM_BUFFER:
@@ -97,68 +125,296 @@ module ex_tracker
             CHECK_PAST_TIME:
             begin
                 state <= OUTPUT_RESULT;
-                trace_element.ex_data.time_start <= ex_ready_time_out[0];
-                recalculate_time <= 1'b0;
-                // Use the returned value from the queue as well as the value buffered from the 
-                // previous clock cycle to deduce the start time.
-                // If either of these branches succeeds then the start time was in the past.
-                if (ex_ready_time_out[1] != -1) 
+                ex_ready_recalculate_time <= 1'b0;
+                if (ex_ready_time_out[0] == -1)
                 begin
-                        trace_element.ex_data.time_end <= ex_ready_time_out[1];
-                        if (ex_ready_time_out[0] != ex_ready_time_out[1])
+                    if (ex_ready_present)
+                    begin
+                        // If this is valid then the start point has been found. It's still possible 
+                        // and end point may have been tracked also so then check for that
+                        trace_element.ex_data.time_start <= counter - 1;
+                        trace_element.ex_data.mem_access_req.time_start <= counter - 1;
+                        if (!ex_ready)
+                        begin
+                            // If the above conditions are met then the end point was tracked.
+                            trace_element.ex_data.time_end <= counter - 1;
+                            trace_element.ex_data.mem_access_req.time_start <= 0;
+                            previous_end_ex <= counter - 1;
+                            update_end <= 1'b1;
+                            state <= OUTPUT_RESULT;
+                        end
+                        // If no end time is found then move to the state that constantly checks for a grant
+                        // signal because, as it's not a single cycle EX it must be a memory access
+                        // of some form.
+                        else state <= CHECK_END; 
+                    end
+                    // If the is_decoding_present variable didn't get the start point there's a chance the 
+                    // current value of is_decoding still holds the data we need solve
+                    if (ex_ready)
+                    begin
+                        trace_element.ex_data.time_start <= counter;
+                        trace_element.ex_data.mem_access_req.time_start <= counter;
+                        // A start time has been found but as yet no end time so jump to a new state 
+                        // to wait for that.
+                        state <= CHECK_END;
+                    end
+                    // If none of this happens then move on and check whether the memory
+                    // signals will have more of an idea
+                    else 
+                    begin
+                       check_past_data_mem_req_values(counter - buffer_output.id_data.time_end);
+                       state <= CHECK_MEMORY_REQS;
+                    end   
+                end
+                // If either of these branches succeeds then the start time was in the past.
+                else if (ex_ready_time_out[1] == -1) 
+                begin
+                    trace_element.ex_data.time_start <= ex_ready_time_out[0];
+                    if (ex_ready_present)
+                    begin
+                        trace_element.ex_data.time_end <= counter - 1;
+                        previous_end_ex <= counter - 1;
+                        update_end <= 1'b1;
+                        if (!(counter - 1 == ex_ready_time_out[0]) 
+                            && data_mem_req_present && !data_mem_req)
                         begin
                             trace_element.ex_data.mem_access_req.time_start <= ex_ready_time_out[0];
-                            trace_element.ex_data.mem_access_req.time_end <= ex_ready_time_out[1];
+                            trace_element.ex_data.mem_access_req.time_end <= counter -1;
                         end
-                end
-                else if (ex_ready_present) 
-                begin
-                    trace_element.ex_data.time_end <= counter - 1;
-                    trace_element.ex_data.mem_access_req.time_start <= ex_ready_time_out[0];
-                    trace_element.ex_data.mem_access_req.time_end <= counter - 1;
-                end
-                // If this next branch succeeds then the start time is the present cycle
-                else if (ex_ready)
-                begin
-                    trace_element.ex_data.time_end <= counter;
-                    trace_element.ex_data.mem_access_req.time_start <= ex_ready_time_out[0];
-                    trace_element.ex_data.mem_access_req.time_end <= counter;
-                end
-                // If none of these branches succeeds then go off to another state to keep checking 
-                // for the start time.
-                else state <= RECHECK_GRANT;
-            end
-            RECHECK_GRANT:
-            begin
-                if (ex_ready)
+                    end
+                    else if (ex_ready)
                     begin
                         trace_element.ex_data.time_end <= counter;
-                        trace_element.ex_data.mem_access_req.time_start <= ex_ready_time_out[0];
+                        previous_end_ex <= counter;
+                        update_end <= 1'b1;
+                        if (data_mem_req) 
+                        begin
+                            // This ensures that the whole interval covered already is checked.
+                            check_past_data_mem_req_values(counter - ex_ready_time_out[0] + 2);
+                            state <= CHECK_MEMORY_STATUS;
+                        end
+                        else state <= OUTPUT_RESULT;
+                    end
+                    else state <= CHECK_END;
+                end
+                else
+                begin
+                    trace_element.ex_data.time_start <= ex_ready_time_out[0];
+                    trace_element.ex_data.time_end <= ex_ready_time_out[1];
+                    previous_end_ex <= ex_ready_time_out[1];
+                    update_end <= 1'b1;
+                    if (ex_ready_time_out[0] != ex_ready_time_out[1])
+                    begin
+                        // This ensures that the whole interval covered already is checked.
+                        check_past_data_mem_req_values(counter - ex_ready_time_out[0] + 2);
+                        state <= CHECK_MEMORY_STATUS;
+                    end 
+                end
+            end
+            CHECK_MEMORY_REQS:
+            begin
+                data_mem_req_recalculate_time <= 1'b0;
+                // If no start point has been found then the signal cannot have started so 
+                // either it started in one of the two tracked signals or we're still waiting
+                // for it to start.
+                if (data_mem_req_time_out[0] == -1)
+                begin
+                    if (data_mem_req_present)
+                    begin
+                        // If this is valid then the start point has been found. It's still possible 
+                        // and end point may have been tracked also so then check for that
+                        trace_element.ex_data.time_start <= counter - 1;
+                        trace_element.ex_data.mem_access_req.time_start <= counter - 1;
+                        if (!data_mem_req)
+                        begin
+                            // If the above conditions are met then the end point was tracked also so there's
+                            // no need to change the state variable as CHECK_JUMP is the correct next location.
+                            trace_element.ex_data.time_end <= counter;
+                            trace_element.ex_data.mem_access_req.time_end <= counter;
+                            previous_end_ex <= counter;
+                            update_end <= 1'b1;
+                            state <= OUTPUT_RESULT;
+                        end
+                        // If no end time is found then move to the state that constantly checks for an end.
+                        else state <= CHECK_GRANT; 
+                    end
+                    // If the is_decoding_present variable didn't get the start point there's a chance the 
+                    // current value of is_decoding still holds the data we need solve
+                    if (data_mem_req)
+                    begin
+                        trace_element.ex_data.time_start <= counter;
+                        trace_element.ex_data.mem_access_req.time_start <= counter;
+                        // A start time has been found but as yet no end time so jump to a new state 
+                        // to wait for that.
+                        state <= CHECK_GRANT;
+                    end
+                    // If none of this happens then you need to just check for a start time constantly
+                    else 
+                    begin
+                       check_past_data_mem_req_values(counter - buffer_output.id_data.time_end);
+                       state <= CHECK_START;
+                    end
+                end
+                else if (data_mem_req_time_out[1] == -1)
+                begin
+                    trace_element.ex_data.time_start <= data_mem_req_time_out[0];
+                    trace_element.ex_data.mem_access_req.time_start <= data_mem_req_time_out[0];
+                    // If you have a start point but as yet no end point you need to check through the
+                    // other saved values to see whether the end point has been tracked or it needs to 
+                    // be checked for.
+                    if (!data_mem_req)
+                    begin
+                        trace_element.ex_data.time_end <= counter;
                         trace_element.ex_data.mem_access_req.time_end <= counter;
+                        previous_end_ex <= counter;
+                        update_end <= 1'b1;
+                        state <= OUTPUT_RESULT;
+                    end
+                    else if (!data_mem_req)
+                    begin
+                        trace_element.ex_data.time_end <= counter + 1;
+                        trace_element.ex_data.mem_access_req.time_end  <= counter + 1;
+                        previous_end_ex <= counter + 1;
+                        update_end <= 1'b1;
+                        state <= OUTPUT_RESULT;
+                    end
+                    else state <= CHECK_GRANT;
+                end
+                else
+                begin
+                    trace_element.ex_data.time_start <= data_mem_req_time_out[0];
+                    trace_element.ex_data.mem_access_req.time_start <= data_mem_req_time_out[0];
+                    trace_element.ex_data.time_end <= data_mem_req_time_out[1];
+                    trace_element.ex_data.mem_access_req.time_end <= data_mem_req_time_out[0];
+                    previous_end_ex <= data_mem_req_time_out[1];
+                    update_end <= 1'b1;
+                    state <= OUTPUT_RESULT;
+                end
+            end 
+            CHECK_START:
+            begin
+                if (ex_ready)
+                begin
+                    trace_element.ex_data.time_start <= counter;
+                    state <= CHECK_END;
+                end
+                else if (data_mem_req)
+                begin
+                    trace_element.ex_data.time_start <= counter;
+                    trace_element.ex_data.mem_access_req.time_start <= counter;
+                    state <= CHECK_GRANT;
+                end
+            end
+            CHECK_END:
+            begin
+                if (!ex_ready)
+                begin
+                    trace_element.ex_data.time_end <= counter;
+                    state <= OUTPUT_RESULT;
+                    previous_end_ex <= counter - 1;
+                    update_end <= 1'b1;
+                    if (trace_element.ex_data.time_start == counter - 1)
+                    begin
+                        trace_element.ex_data.time_end <= counter - 1;
+                    end
+                    else if (data_mem_grant)
+                    begin
+                        trace_element.ex_data.mem_access_req.time_start <= trace_element.ex_data.time_start;
+                        trace_element.ex_data.mem_access_req.time_end <= counter;
+                    end
+                end
+                else if (data_mem_grant)
+                begin
+                    trace_element.ex_data.time_end <= counter;
+                    trace_element.ex_data.mem_access_req.time_start <= trace_element.ex_data.time_start;
+                    trace_element.ex_data.mem_access_req.time_end <= counter;
+                    previous_end_ex <= counter;
+                    update_end <= 1'b1;
+                    state <= OUTPUT_RESULT;
+                end
+            end
+            CHECK_MEMORY_STATUS:
+            begin
+                data_mem_req_recalculate_time <= 1'b0;
+                state <= OUTPUT_RESULT;
+                if (trace_element.ex_data.time_start == data_mem_req_time_out[0])
+                begin
+                    trace_element.ex_data.mem_access_req.time_start <= data_mem_req_time_out[0];
+                end
+                if (data_mem_req_time_out[1] == -1)
+                begin
+                    if (data_mem_req_present && trace_element.ex_data.time_end == counter - 1)
+                    begin
+                        trace_element.ex_data.mem_access_req.time_end <= counter - 1;
+                    end
+                    else if (data_mem_req && trace_element.ex_data.time_end == counter)
+                    begin
+                        trace_element.ex_data.mem_access_req.time_end <= counter;
+                    end
+                end
+                else if (trace_element.ex_data.time_end == data_mem_req_time_out[1])
+                begin
+                    trace_element.ex_data.mem_access_req.time_end <= data_mem_req_time_out[1]; 
+                end
+            end
+            CHECK_GRANT:
+            begin
+                if (data_mem_grant)
+                    begin
+                        trace_element.ex_data.time_end <= counter;
+                        trace_element.ex_data.mem_access_req.time_start <= trace_element.ex_data.time_start;
+                        trace_element.ex_data.mem_access_req.time_end <= counter;
+                        previous_end_ex <= counter;
+                        update_end <= 1'b1;
                         state <= OUTPUT_RESULT;
                     end
                 end
             OUTPUT_RESULT:
             begin
+                previous_end_ex <= trace_element.ex_data.time_end;
+                update_end <= 1'b1;
+                if (trace_element.ex_data.mem_access_req.time_end != 0) previous_end_memory = 1'b1;
+                else previous_end_memory = 1'b0;
                 ex_data_o <= trace_element;
                 ex_data_ready <= 1'b1;
                 state <= EXECUTION_START;
             end
         endcase
     end
+    
+    always @(update_end)
+    begin
+        if (update_end) update_end = 1'b0;
+    end
+        
+    always @(wb_previous_end_i, update_end)
+    begin
+        if (previous_end_ex <= wb_previous_end_i)
+        begin
+            previous_end_to_buffer <= wb_previous_end_i;
+        end
+        else previous_end_to_buffer <= previous_end_ex + 1;
+    end
         
     task initialise_module();
         state <= EXECUTION_START;
         ex_data_ready <= 0;
         ex_ready_value_in <= 0;
-        recalculate_time = 0;
+        ex_ready_recalculate_time <= 0;
+        previous_end_ex <= 0;
+        previous_end_to_buffer <= 0;
         trace_element <= '{default:0};
     endtask
         
     task check_past_ex_ready_values(input integer queue_input);
         ex_ready_value_in <= queue_input;
         ex_ready_present <= ex_ready;
-        recalculate_time <= 1'b1;
+        ex_ready_recalculate_time <= 1'b1;
     endtask
         
+    task check_past_data_mem_req_values(input integer queue_input);
+            data_mem_req_value_in <= queue_input;
+            data_mem_req_present <= data_mem_req;
+            data_mem_req_recalculate_time <= 1'b1;
+    endtask    
 endmodule

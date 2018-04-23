@@ -21,6 +21,7 @@ module id_tracker
     input logic id_ready,
     input logic jump_done,
     input logic is_decoding,
+    input logic illegal_instruction,
     
     // Outputs to EX Tracker
     output trace_output id_data_o,
@@ -67,6 +68,19 @@ module id_tracker
      );
      logic jump_done_present = 0;
      
+     // Place to track the state of the illegal_instruction marker that indicates when a fetch has failed
+     // to fetch a valid instruction
+     
+     integer illegal_instruction_range_in [1:0] = {0,0};
+     bit illegal_instruction_range_out = 0;
+     bit recalculate_illegal_instruction_range = 1'b0;
+     signal_tracker  #(1, 16) illegal_instruction_buffer (
+        .clk(clk), .rst(rst), .counter(counter), .tracked_signal(illegal_instruction), 
+        .range_in(illegal_instruction_range_in),
+        .range_out(illegal_instruction_range_out), .recalculate_range(recalculate_illegal_instruction_range)
+     );
+     logic illegal_instruction_present = 0;
+     
      // Trace Buffer
      bit data_request = 1'b0;
      bit data_present;
@@ -93,9 +107,26 @@ module id_tracker
                 data_request <= 1'b0;
                 // Copy in data to the internal trace buffer
                 trace_element <= buffer_output;
-                // Set id_ready queue input values to read back in next cycle.
-                check_past_is_decoding_values(counter - buffer_output.if_data.time_end);
-                state <= CHECK_PAST_TIME;
+                check_past_illegal_instruction_values(buffer_output.if_data.time_end);
+                state <= CHECK_ILLEGAL_INSTR;
+            end
+            CHECK_ILLEGAL_INSTR:
+            begin
+                recalculate_illegal_instruction_range <= 1'b0;
+                if (illegal_instruction_range_out)
+
+                begin
+                    trace_element.pass_through <= 1'b1;
+                    trace_element.id_data <= '{default:0};
+                    trace_element.ex_data <= '{default:0};
+                    trace_element.wb_data <= '{default:0};  
+                    state <= OUTPUT_RESULT;
+                end
+                else
+                begin
+                    check_past_is_decoding_values(counter - buffer_output.if_data.time_end);
+                    state <= CHECK_PAST_TIME;
+                end
             end
             CHECK_PAST_TIME:
             begin
@@ -257,6 +288,12 @@ module id_tracker
         jump_done_range_in <= {queue_end, queue_start};
         jump_done_present = jump_done;
         recalculate_jump_done_range <= 1'b1;
+    endtask
+    
+    task check_past_illegal_instruction_values(input integer queue_end);
+        illegal_instruction_range_in <= {queue_end+1, queue_end+1};
+        illegal_instruction_present = jump_done;
+        recalculate_illegal_instruction_range <= 1'b1;
     endtask
   
 endmodule 

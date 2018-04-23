@@ -99,7 +99,8 @@ module advanced_signal_tracker
                 else if (found_start)
                 begin
                     if  ((!tracked_signal_buffer[buffer_index]) ||
-                    corrob_high && !corroborating_signal_buffer[buffer_index]) 
+                    corrob_high && !corroborating_signal_buffer[buffer_index] || 
+                    corrob_high && corroborating_signal_buffer[buffer_index] && tracked_signal_buffer[buffer_index]) 
                     begin
                         time_out[1] = counter - (value_in - i) - 1;
                         break;

@@ -90,6 +90,7 @@ module ryuki_testbench;
     logic data_req_id_o;
     logic ex_ready_o;
     logic wb_ready_o;
+    logic illegal_instr_o;
     
     logic trace_ready;
     trace_output trace_o;
@@ -98,7 +99,8 @@ module ryuki_testbench;
     
     trace_unit #(`ADDR_WIDTH, `DATA_WIDTH) tracer(clk_i, rst_ni, if_busy_o, if_ready_o,
     instr_req_o, instr_addr_o, instr_gnt_i,  instr_rvalid_i, instr_rdata_i, 
-    id_ready_o, jump_done_o, is_decoding_o, ex_ready_o, wb_ready_o, trace_ready, trace_o);
+    id_ready_o, jump_done_o, is_decoding_o,illegal_instr_o, ex_ready_o, 
+    data_req_o, data_gnt_i, data_rvalid_i, wb_ready_o, trace_ready, trace_o);
     
     initial
         begin

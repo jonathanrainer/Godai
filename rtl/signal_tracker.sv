@@ -14,17 +14,28 @@ module signal_tracker
     input bit recalculate_time,
     input integer range_in [0:1],
     input bit recalculate_range,
+    input bit update_end,
+    input integer previous_end_i,
+    input bit recalculate_single_cycle,
+    input bit previous_end_memory,
     
     // Outputs
     
     output integer signed time_out [1:0],
-    output bit range_out
+    output bit range_out,
+    output integer single_cycle_out
 );
 
     bit [TRACKED_SIGNAL_WIDTH-1:0] buffer [BUFFER_WIDTH-1:0];
     bit [$clog2(BUFFER_WIDTH):0] front; 
     bit signed [$clog2(BUFFER_WIDTH):0] rear;
     bit buffer_full = 1'b0;
+    
+    // Method to track the previous end of tracked signal
+    integer previous_end;
+    
+    // Enum to denote the source of the previous_end measurement (i.e. Did it result
+    // from a memory transaction or not?)
     
     // Clocked Part (Data Collection)
     always@(negedge clk)
@@ -52,32 +63,64 @@ module signal_tracker
         if (!((!buffer_full && (value_in - 1) > rear) || value_in > BUFFER_WIDTH))
         begin
             // Calculate the index for the signal entry at the START of the interval to be checked
-            automatic integer buffer_index = rear - value_in + 1;
+            automatic integer buffer_index = 0;
             // Declare a set of booleans to track the success of finding a start and end point
             automatic bit found_start = 1'b0;
-            // If that value turns out to be negative because of wrap around, treat it as unsigned,
-            // and then modulo by BUFFER_SIZE (a power of 2^n) to strip off the bottom n bits of the
-            // negative number. 
-            if (buffer_index < 0) buffer_index = $unsigned(buffer_index) % BUFFER_WIDTH;
-            // Check initially if the very start of the interval contains a 1, if do that must be the full
-            // duration of the signal. 
-            if (buffer[buffer_index]) time_out = {counter - value_in, counter - value_in};
-            // If none of that works then start checking for alternative possibilities
-            else
+            // State of the signal that we're tracking a change of
+            automatic bit sig_state = 1'b0;
+            // Check through to see if it's possible to find a starting point in the required
+            // period. If it isn't then return [-1,-1] meaning that nothing has started or stopped yet.
+            for (int i=0; i <= value_in; i++)
             begin
-                // Check through to see if it's possible to find a starting point in the required
-                // period. If it isn't then return [-1,-1] meaning that nothing has started or stopped yet.
-                for (int i=buffer_index + 1; i <= value_in; i++)
+                buffer_index = rear - value_in + 1 + i;
+                if (buffer_index >= BUFFER_WIDTH) buffer_index = buffer_index % BUFFER_WIDTH;
+                // If that value turns out to be negative because of wrap around, treat it as unsigned,
+                // and then modulo by BUFFER_SIZE (a power of 2^n) to strip off the bottom n bits of the
+                // negative number. 
+                if (buffer_index < 0) buffer_index = $unsigned(buffer_index) % BUFFER_WIDTH;
+                // Check if the current slot is the start (is high) or
+                // check to make sure that it's low and the previous cycle is high (in the case of a ready
+                // signal it's a 0 = activity type measure).
+                if (
+                    !found_start && 
+                        ( 
+                            buffer[buffer_index] || 
+                                (
+                                    ($unsigned(buffer_index - 1) % BUFFER_WIDTH != rear) &&
+                                    buffer[$unsigned(buffer_index - 1) % BUFFER_WIDTH] &&
+                                    (((counter - 1 - (value_in - i)) >= previous_end && !previous_end_memory) || 
+                                    (((counter - 1 - (value_in - i)) > previous_end && previous_end_memory)
+                                    ))
+                                )
+                        )
+                     && ((counter - (value_in - i)) > previous_end) 
+                   ) 
                 begin
-                    if (i >= BUFFER_WIDTH) i = i % BUFFER_WIDTH;
-                    if (buffer[i] && !found_start) 
+                    time_out[0] = counter - (value_in - i);
+                    sig_state = buffer[buffer_index];
+                    if ((($unsigned(buffer_index - 1) % BUFFER_WIDTH != rear) &&
+                        !buffer[$unsigned(buffer_index - 1) % BUFFER_WIDTH]) ||
+                        buffer_index == front || !buffer[buffer_index])
                     begin
-                        time_out[0] = counter - (value_in - i);
+                        // You have a defined edge
                         found_start = 1'b1;
                     end
-                    else if (buffer[i] && found_start)
+                    else
+                        // You have found a single cycle location
+                        begin
+                            time_out[1] = time_out[0];
+                            previous_end = time_out[0];
+                            break;
+                        end
+                end
+                else if (found_start)
+                begin
+                    if (buffer[buffer_index] && ((((buffer_index + 1) % BUFFER_WIDTH) != front &&
+                        !buffer[(buffer_index + 1) % BUFFER_WIDTH]) || 
+                        (buffer[buffer_index] != sig_state)))
                     begin
                         time_out[1] = counter - (value_in - i);
+                        previous_end = counter - (value_in - i);
                         break;
                     end
                 end
@@ -120,6 +163,31 @@ module signal_tracker
             end
         end
     end
+    
+    // Single Cycle check (Did a signal occur in this period)
+        
+        always@ (posedge recalculate_single_cycle)
+        begin
+            single_cycle_out = -1; 
+            if (!(range_in[1] > counter || 
+                (!buffer_full && (range_in[0] > rear)) || 
+                (buffer_full && (range_in[1] - range_in[0] > BUFFER_WIDTH))
+                 )) 
+            begin
+                automatic integer limit = range_in[1] - range_in[0];
+                if (limit < 0) limit = range_in[0] - range_in[1];
+                for (int i=0; i <= limit; i++)
+                begin
+                    automatic integer buffer_index = rear - (counter - range_in[0]) + i;
+                    if (buffer_index < 0) buffer_index += BUFFER_WIDTH;
+                    if (buffer[buffer_index])
+                    begin
+                         single_cycle_out = range_in[0] + i - 1;
+                         break;
+                    end
+                end
+            end 
+        end
         
     // Reset behaviour
     
@@ -130,7 +198,16 @@ module signal_tracker
             front <= 0;
             rear <= -1;
             buffer <= '{default:0};
-            buffer_full = 1'b0;
+            buffer_full <= 1'b0;
+            previous_end <= 1'b0;
+        end
+    end
+    
+    always@(negedge clk)
+    begin
+        if (update_end)
+        begin
+            previous_end <= previous_end_i;
         end
     end
 

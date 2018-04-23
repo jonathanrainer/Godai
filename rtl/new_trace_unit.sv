@@ -26,10 +26,14 @@ module trace_unit
     input logic id_ready,
     input logic jump_done,
     input logic is_decoding,
+    input logic illegal_instruction,
     
     // EX Register Ports
     
     input logic ex_ready,
+    input logic data_mem_req,
+    input logic data_mem_grant,
+    input logic data_mem_rvalid,
     
     // WB Register ports
     
@@ -49,12 +53,13 @@ module trace_unit
     trace_output id_data_o;
     logic ex_data_ready;
     trace_output ex_data_o;
+    
+    integer previous_end_o;
 
     if_tracker if_tr (.*);
     id_tracker #(ADDR_WIDTH, DATA_WIDTH, 8) id_tr(.if_data_i(if_data_o), .*);
-    ex_tracker #(ADDR_WIDTH, DATA_WIDTH) ex_tr(.id_data_i(id_data_o), .*);
+    ex_tracker #(ADDR_WIDTH, DATA_WIDTH) ex_tr(.id_data_i(id_data_o), .wb_previous_end_i(previous_end_o), .*);
     wb_tracker #(ADDR_WIDTH, DATA_WIDTH) wb_tr(.ex_data_i(ex_data_o), .wb_data_o(trace_data_o), .*);
-
     initial
     begin
         initialise_device();

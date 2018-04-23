@@ -93,7 +93,8 @@ module riscv_core
   output logic data_req_id_o,
   output logic jump_done_o,
   output logic ex_ready_o,
-  output logic wb_ready_o
+  output logic wb_ready_o,
+  output logic illegal_instr_o
 );
 
   localparam N_HWLP      = 2;
@@ -376,7 +377,10 @@ module riscv_core
     .if_valid_o          ( if_valid          ),
 
     .if_busy_o           ( if_busy           ),
-    .perf_imiss_o        ( perf_imiss        )
+    .perf_imiss_o        ( perf_imiss        ),
+    
+    // Tracing Outputs
+    .illegal_instr_o     (illegal_instr_o)
   );
 
 
