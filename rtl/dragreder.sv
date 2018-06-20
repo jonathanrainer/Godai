@@ -1,9 +1,9 @@
 import ryuki_datatypes::trace_output;
 
-module trace_unit
+module dragreder
 #(
-    parameter ADDR_WIDTH = 32,
-    parameter DATA_WIDTH = 32
+    parameter INSTR_ADDR_WIDTH = 32,
+    parameter INSTR_DATA_WIDTH = 32
 )
 (
     input logic clk,
@@ -16,10 +16,10 @@ module trace_unit
 
     // Instruction Memory Ports
     input logic                     instr_req,
-    input logic [ADDR_WIDTH-1:0]    instr_addr,
+    input logic [INSTR_ADDR_WIDTH-1:0]    instr_addr,
     input logic                     instr_grant,
     input logic                     instr_rvalid,
-    input logic [DATA_WIDTH-1:0]    instr_rdata,
+    input logic [INSTR_DATA_WIDTH-1:0]    instr_rdata,
     
     // ID Register Ports
     
@@ -57,9 +57,9 @@ module trace_unit
     integer previous_end_o;
 
     if_tracker if_tr (.*);
-    id_tracker #(ADDR_WIDTH, DATA_WIDTH, 8) id_tr(.if_data_i(if_data_o), .*);
-    ex_tracker #(ADDR_WIDTH, DATA_WIDTH) ex_tr(.id_data_i(id_data_o), .wb_previous_end_i(previous_end_o), .*);
-    wb_tracker #(ADDR_WIDTH, DATA_WIDTH) wb_tr(.ex_data_i(ex_data_o), .wb_data_o(trace_data_o), .*);
+    id_tracker #(INSTR_ADDR_WIDTH, INSTR_DATA_WIDTH, 8) id_tr(.if_data_i(if_data_o), .*);
+    ex_tracker #(INSTR_ADDR_WIDTH, INSTR_DATA_WIDTH) ex_tr(.id_data_i(id_data_o), .wb_previous_end_i(previous_end_o), .*);
+    wb_tracker #(INSTR_ADDR_WIDTH, INSTR_DATA_WIDTH) wb_tr(.ex_data_i(ex_data_o), .wb_data_o(trace_data_o), .*);
     initial
     begin
         initialise_device();

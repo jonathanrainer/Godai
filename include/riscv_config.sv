@@ -21,10 +21,13 @@
 //                                                                            //
 ////////////////////////////////////////////////////////////////////////////////
 
+`define SYNTHESIS
+`define PULP_FPGA_EMUL
+
 // no traces for synthesis, they are not synthesizable
 `ifndef SYNTHESIS
 `ifndef PULP_FPGA_EMUL
-//`define TRACE_EXECUTION
+`define TRACE_EXECUTION
 `endif
-//`define SIMCHECKER
+`define SIMCHECKER
 `endif
