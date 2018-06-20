@@ -55,7 +55,7 @@ add_files -norecurse $rtl_root/advanced_signal_tracker.sv
 add_files -norecurse $rtl_root/ex_tracker.sv
 add_files -norecurse $rtl_root/id_tracker.sv
 add_files -norecurse $rtl_root/if_tracker.sv
-add_files -norecurse $rtl_root/new_trace_unit.sv
+add_files -norecurse $rtl_root/dragreder.sv
 add_files -norecurse $rtl_root/signal_tracker.sv
 add_files -norecurse $rtl_root/trace_buffer.sv
 add_files -norecurse $rtl_root/wb_tracker.sv
