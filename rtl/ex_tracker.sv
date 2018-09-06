@@ -2,8 +2,7 @@ import ryuki_datatypes::trace_output;
 
 module ex_tracker
 #(
-    parameter ADDR_WIDTH = 32,
-    parameter DATA_WIDTH = 32
+    parameter DATA_ADDR_WIDTH = 32
 )
 (
     input logic clk,
@@ -22,6 +21,7 @@ module ex_tracker
     // Inputs from Memory Phase
     input logic data_mem_req,
     input logic data_mem_grant,
+    input logic [DATA_ADDR_WIDTH-1:0] data_mem_addr,
     
     // Inputs from WB Tracker for Previous End
     input integer wb_previous_end_i,
@@ -55,7 +55,7 @@ module ex_tracker
     integer ex_ready_value_in = 0;
     integer ex_ready_time_out [1:0] = {0,0};
     bit ex_ready_recalculate_time = 1'b0;
-    signal_tracker  #(1, 16) ex_ready_buffer (
+    signal_tracker  #(1, 32) ex_ready_buffer (
         .clk(clk), .rst(rst), .counter(counter), .tracked_signal(ex_ready), .value_in(ex_ready_value_in),
         .time_out(ex_ready_time_out), .recalculate_time(ex_ready_recalculate_time),
          .previous_end_i(previous_end_to_buffer), .update_end(update_end), .previous_end_memory(previous_end_memory)
@@ -66,12 +66,22 @@ module ex_tracker
     integer data_mem_req_value_in = 0;
     integer data_mem_req_time_out [1:0] = {0,0};
     bit data_mem_req_recalculate_time = 1'b0;
-    signal_tracker  #(1, 16) data_mem_req_buffer (
+    signal_tracker  #(1, 32) data_mem_req_buffer (
         .clk(clk), .rst(rst), .counter(counter), .tracked_signal(data_mem_req), .value_in(data_mem_req_value_in),
         .time_out(data_mem_req_time_out), .recalculate_time(data_mem_req_recalculate_time), 
         .previous_end_i(previous_end_to_buffer), .update_end(update_end), .previous_end_memory(previous_end_memory)
         );
     logic data_mem_req_present = 0;
+    
+    // Buffer to track Memory Addresses
+    integer data_mem_addr_cycles_back = 0;
+    bit data_mem_addr_recalculate_back_cycle = 1'b0;
+    bit [DATA_ADDR_WIDTH-1:0] recalled_addr = 0;
+    signal_tracker  #(DATA_ADDR_WIDTH, 32) data_mem_addr_buffer (
+        .clk(clk), .rst(rst), .counter(counter), .tracked_signal(data_mem_addr), 
+        .cycles_back_to_recall(data_mem_addr_cycles_back), 
+        .recalculate_back_cycle(data_mem_addr_recalculate_back_cycle),
+        .signal_recall(recalled_addr));
     
     // Trace Buffer
      bit data_request = 1'b0;
@@ -126,8 +136,10 @@ module ex_tracker
             begin
                 state <= OUTPUT_RESULT;
                 ex_ready_recalculate_time <= 1'b0;
+                // If no start time is found in the past
                 if (ex_ready_time_out[0] == -1)
                 begin
+                    // Check the last ex_ready signal that won't be caught by the buffer
                     if (ex_ready_present)
                     begin
                         // If this is valid then the start point has been found. It's still possible 
@@ -180,6 +192,7 @@ module ex_tracker
                         begin
                             trace_element.ex_data.mem_access_req.time_start <= ex_ready_time_out[0];
                             trace_element.ex_data.mem_access_req.time_end <= counter -1;
+                            check_past_data_mem_addr_values(1);
                         end
                     end
                     else if (ex_ready)
@@ -231,6 +244,7 @@ module ex_tracker
                             // no need to change the state variable as CHECK_JUMP is the correct next location.
                             trace_element.ex_data.time_end <= counter;
                             trace_element.ex_data.mem_access_req.time_end <= counter;
+                            check_past_data_mem_addr_values(0);
                             previous_end_ex <= counter;
                             update_end <= 1'b1;
                             state <= OUTPUT_RESULT;
@@ -262,10 +276,11 @@ module ex_tracker
                     // If you have a start point but as yet no end point you need to check through the
                     // other saved values to see whether the end point has been tracked or it needs to 
                     // be checked for.
-                    if (!data_mem_req)
+                    if (!data_mem_req_present)
                     begin
                         trace_element.ex_data.time_end <= counter;
                         trace_element.ex_data.mem_access_req.time_end <= counter;
+                        check_past_data_mem_addr_values(0);
                         previous_end_ex <= counter;
                         update_end <= 1'b1;
                         state <= OUTPUT_RESULT;
@@ -274,6 +289,7 @@ module ex_tracker
                     begin
                         trace_element.ex_data.time_end <= counter + 1;
                         trace_element.ex_data.mem_access_req.time_end  <= counter + 1;
+                        trace_element.ex_data.mem_addr <= data_mem_addr;
                         previous_end_ex <= counter + 1;
                         update_end <= 1'b1;
                         state <= OUTPUT_RESULT;
@@ -286,6 +302,7 @@ module ex_tracker
                     trace_element.ex_data.mem_access_req.time_start <= data_mem_req_time_out[0];
                     trace_element.ex_data.time_end <= data_mem_req_time_out[1];
                     trace_element.ex_data.mem_access_req.time_end <= data_mem_req_time_out[0];
+                    check_past_data_mem_addr_values(counter-data_mem_req_time_out[0]);
                     previous_end_ex <= data_mem_req_time_out[1];
                     update_end <= 1'b1;
                     state <= OUTPUT_RESULT;
@@ -321,6 +338,7 @@ module ex_tracker
                     begin
                         trace_element.ex_data.mem_access_req.time_start <= trace_element.ex_data.time_start;
                         trace_element.ex_data.mem_access_req.time_end <= counter;
+                        check_past_data_mem_addr_values(0);
                     end
                 end
                 else if (data_mem_grant)
@@ -328,6 +346,7 @@ module ex_tracker
                     trace_element.ex_data.time_end <= counter;
                     trace_element.ex_data.mem_access_req.time_start <= trace_element.ex_data.time_start;
                     trace_element.ex_data.mem_access_req.time_end <= counter;
+                    check_past_data_mem_addr_values(0);
                     previous_end_ex <= counter;
                     update_end <= 1'b1;
                     state <= OUTPUT_RESULT;
@@ -346,15 +365,18 @@ module ex_tracker
                     if (data_mem_req_present && trace_element.ex_data.time_end == counter - 1)
                     begin
                         trace_element.ex_data.mem_access_req.time_end <= counter - 1;
+                        check_past_data_mem_addr_values(1);
                     end
                     else if (data_mem_req && trace_element.ex_data.time_end == counter)
                     begin
                         trace_element.ex_data.mem_access_req.time_end <= counter;
+                        check_past_data_mem_addr_values(0);
                     end
                 end
                 else if (trace_element.ex_data.time_end == data_mem_req_time_out[1])
                 begin
-                    trace_element.ex_data.mem_access_req.time_end <= data_mem_req_time_out[1]; 
+                    trace_element.ex_data.mem_access_req.time_end <= data_mem_req_time_out[1];
+                    check_past_data_mem_addr_values(data_mem_req_time_out[1]); 
                 end
             end
             CHECK_GRANT:
@@ -364,6 +386,7 @@ module ex_tracker
                         trace_element.ex_data.time_end <= counter;
                         trace_element.ex_data.mem_access_req.time_start <= trace_element.ex_data.time_start;
                         trace_element.ex_data.mem_access_req.time_end <= counter;
+                        check_past_data_mem_addr_values(0);
                         previous_end_ex <= counter;
                         update_end <= 1'b1;
                         state <= OUTPUT_RESULT;
@@ -371,13 +394,21 @@ module ex_tracker
                 end
             OUTPUT_RESULT:
             begin
-                previous_end_ex <= trace_element.ex_data.time_end;
-                update_end <= 1'b1;
-                if (trace_element.ex_data.mem_access_req.time_end != 0) previous_end_memory = 1'b1;
-                else previous_end_memory = 1'b0;
-                ex_data_o <= trace_element;
-                ex_data_ready <= 1'b1;
-                state <= EXECUTION_START;
+                if (data_mem_addr_recalculate_back_cycle == 1'b1)
+                begin
+                    data_mem_addr_recalculate_back_cycle <= 1'b0;
+                    trace_element.ex_data.mem_addr <= recalled_addr;
+                end
+                else
+                begin
+                    previous_end_ex <= trace_element.ex_data.time_end;
+                    update_end <= 1'b1;
+                    if (trace_element.ex_data.mem_access_req.time_end != 0) previous_end_memory = 1'b1;
+                    else previous_end_memory = 1'b0;
+                    ex_data_o <= trace_element;
+                    ex_data_ready <= 1'b1;
+                    state <= EXECUTION_START;
+                end
             end
         endcase
     end
@@ -413,8 +444,15 @@ module ex_tracker
     endtask
         
     task check_past_data_mem_req_values(input integer queue_input);
-            data_mem_req_value_in <= queue_input;
-            data_mem_req_present <= data_mem_req;
-            data_mem_req_recalculate_time <= 1'b1;
-    endtask    
+        data_mem_req_value_in <= queue_input;
+        data_mem_req_present <= data_mem_req;
+        data_mem_req_recalculate_time <= 1'b1;
+    endtask
+    
+    task check_past_data_mem_addr_values(input integer queue_input);
+        data_mem_addr_cycles_back <= queue_input;
+        data_mem_addr_recalculate_back_cycle <= 1'b1;
+    endtask
+    
+        
 endmodule

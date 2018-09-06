@@ -2,8 +2,6 @@ import ryuki_datatypes::trace_output;
 
 module wb_tracker
 #(
-    parameter ADDR_WIDTH = 32,
-    parameter DATA_WIDTH = 32
 )
 (
     input logic clk,
@@ -22,6 +20,7 @@ module wb_tracker
     
     // Output from Tracker
     output trace_output wb_data_o,
+    output logic wb_data_ready,
     
     // Output to enable EX phase to have knowledge of the end of memory phases
     output integer previous_end_o
@@ -91,6 +90,7 @@ module wb_tracker
          unique case(state)
              WRITEBACK_START:
              begin
+                 wb_data_ready <= 1'b0;
                  if (data_present)
                  begin
                      data_request <= 1'b1;
@@ -103,6 +103,7 @@ module wb_tracker
                  if (buffer_output.pass_through)
                  begin
                      wb_data_o <= buffer_output;
+                     wb_data_ready <= 1'b1;
                      state <= WRITEBACK_START;
                  end
                  else
@@ -315,6 +316,7 @@ module wb_tracker
                  if (trace_element.wb_data.mem_access_res.time_end != 0) previous_end_memory = 1'b1;
                  else previous_end_memory = 1'b0;
                  wb_data_o <= trace_element;
+                 wb_data_ready <= 1'b1;
                  state <= WRITEBACK_START;
              end
          endcase
@@ -327,6 +329,7 @@ module wb_tracker
          
      task initialise_module();
          state <= WRITEBACK_START;
+         wb_data_ready <= 0;
          wb_ready_value_in <= 0;
          wb_ready_recalculate_time <= 0;
          previous_end_o <= 0;

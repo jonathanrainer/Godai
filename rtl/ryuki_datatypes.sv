@@ -27,6 +27,7 @@ package ryuki_datatypes;
     typedef struct packed {
         bit[31:0] time_start;
         bit[31:0] time_end;
+        bit[`ADDR_WIDTH-1:0] mem_addr;
         mem_access_req mem_access_req;
     } EX_data;
     

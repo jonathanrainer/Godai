@@ -46,6 +46,7 @@ module instruction_memory
         mem[20] = 32'h006386B3; // ADD R6 R7 R13
         mem[21] = 32'h0000006F; // Loop on this address
         mem[32] = 32'hF81FF06F; // Jump to Address 0
+        mem[33] = 32'h0000006F; // Trap Address
         gnt_o = 1'b0;
         rvalid_o = 1'b0;
         rdata_o = 32'bx;

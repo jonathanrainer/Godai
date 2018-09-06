@@ -2,9 +2,6 @@ import ryuki_datatypes::trace_output;
 
 module id_tracker
 #(
-    parameter ADDR_WIDTH = 32,
-    parameter DATA_WIDTH = 32,
-    parameter BUFFER_WIDTH = 8
 )
 (
     input logic clk,

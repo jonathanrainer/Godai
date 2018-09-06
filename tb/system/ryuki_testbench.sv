@@ -42,7 +42,7 @@ module ryuki_testbench;
     logic [31:0] instr_rdata_i;
     
     // Instruction Memory
-    instruction_memory #(`ADDR_WIDTH, `DATA_WIDTH, `NUM_WORDS) i_mem  (clk_i, instr_req_o, instr_addr_o, 
+    instruction_memory #(`ADDR_WIDTH, `DATA_WIDTH) i_mem  (clk_i, instr_req_o, instr_addr_o, 
                                 instr_gnt_i, instr_rvalid_i, instr_rdata_i);
     
     // Data memory interface
@@ -56,7 +56,7 @@ module ryuki_testbench;
     logic [31:0] data_rdata_i;
     logic        data_err_i;
     
-    data_memory  #(`ADDR_WIDTH, `DATA_WIDTH, `NUM_WORDS) d_mem (clk_i, data_req_o, data_addr_o, data_we_o, data_be_o,
+    data_memory  #(`ADDR_WIDTH, `DATA_WIDTH) d_mem (clk_i, data_req_o, data_addr_o, data_we_o, data_be_o,
                         data_wdata_o, data_gnt_i,  data_rvalid_i, data_rdata_i,
                         data_err_i);
     
@@ -92,15 +92,14 @@ module ryuki_testbench;
     logic wb_ready_o;
     logic illegal_instr_o;
     
-    logic trace_ready;
     trace_output trace_o;
     
     riscv_core  #(1, `DATA_WIDTH) core(.*);
     
-    dragreder #(`ADDR_WIDTH, `DATA_WIDTH) tracer(clk_i, rst_ni, if_busy_o, if_ready_o,
+    dragreder #(`ADDR_WIDTH, `DATA_WIDTH, `ADDR_WIDTH, 32) tracer(clk_i, rst_ni, if_busy_o, if_ready_o,
     instr_req_o, instr_addr_o, instr_gnt_i,  instr_rvalid_i, instr_rdata_i, 
     id_ready_o, jump_done_o, is_decoding_o,illegal_instr_o, ex_ready_o, 
-    data_req_o, data_gnt_i, data_rvalid_i, wb_ready_o, trace_ready, trace_o);
+    data_req_o, data_gnt_i, data_rvalid_i, data_addr_o, wb_ready_o, trace_o);
     
     initial
         begin
@@ -114,7 +113,7 @@ module ryuki_testbench;
             boot_addr_i = 32'h20;
             fetch_enable_i = 1;
             #50 rst_ni = 1;
-            #50000 $finish;
+            #100000 $finish;
         end
     
     always

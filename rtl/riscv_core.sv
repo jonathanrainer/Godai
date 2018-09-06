@@ -768,127 +768,140 @@ module riscv_core
                                                                     : CSR_OP_NONE );
   assign csr_addr_int = csr_access_ex ? alu_operand_b_ex[11:0] : '0;
 
-
-  /////////////////////////////////////////////////////////////
-  //  ____  _____ ____  _   _  ____   _   _ _   _ ___ _____  //
-  // |  _ \| ____| __ )| | | |/ ___| | | | | \ | |_ _|_   _| //
-  // | | | |  _| |  _ \| | | | |  _  | | | |  \| || |  | |   //
-  // | |_| | |___| |_) | |_| | |_| | | |_| | |\  || |  | |   //
-  // |____/|_____|____/ \___/ \____|  \___/|_| \_|___| |_|   //
-  //                                                         //
-  /////////////////////////////////////////////////////////////
-
-  riscv_debug_unit debug_unit_i
-  (
-    .clk               ( clk_i              ), // always-running clock for debug
-    .rst_n             ( rst_ni             ),
-
-    // Debug Interface
-    .debug_req_i       ( debug_req_i        ),
-    .debug_gnt_o       ( debug_gnt_o        ),
-    .debug_rvalid_o    ( debug_rvalid_o     ),
-    .debug_addr_i      ( debug_addr_i       ),
-    .debug_we_i        ( debug_we_i         ),
-    .debug_wdata_i     ( debug_wdata_i      ),
-    .debug_rdata_o     ( debug_rdata_o      ),
-    .debug_halt_i      ( debug_halt_i       ),
-    .debug_resume_i    ( debug_resume_i     ),
-    .debug_halted_o    ( debug_halted_o     ),
-
-    // To/From Core
-    .settings_o        ( dbg_settings       ),
-    .trap_i            ( dbg_trap           ),
-    .exc_cause_i       ( exc_cause          ),
-    .stall_o           ( dbg_stall          ),
-    .dbg_req_o         ( dbg_req            ),
-    .dbg_ack_i         ( dbg_ack            ),
-
-    // register file read port
-    .regfile_rreq_o    ( dbg_reg_rreq       ),
-    .regfile_raddr_o   ( dbg_reg_raddr      ),
-    .regfile_rdata_i   ( dbg_reg_rdata      ),
-
-    // register file write port
-    .regfile_wreq_o    ( dbg_reg_wreq       ),
-    .regfile_waddr_o   ( dbg_reg_waddr      ),
-    .regfile_wdata_o   ( dbg_reg_wdata      ),
-
-    // CSR read/write port
-    .csr_req_o         ( dbg_csr_req        ),
-    .csr_addr_o        ( dbg_csr_addr       ),
-    .csr_we_o          ( dbg_csr_we         ),
-    .csr_wdata_o       ( dbg_csr_wdata      ),
-    .csr_rdata_i       ( csr_rdata          ),
-
-    // signals for PPC and NPC
-    .pc_if_i           ( pc_if              ), // from IF stage
-    .pc_id_i           ( pc_id              ), // from IF stage
-    .pc_ex_i           ( pc_ex              ), // PC of last executed branch (in EX stage) or p.elw
-
-    .data_load_event_i ( data_load_event_ex ),
-    .instr_valid_id_i  ( instr_valid_id     ),
-
-    .sleeping_i        ( sleeping           ),
-
-    .branch_in_ex_i    ( branch_in_ex       ),
-    .branch_taken_i    ( branch_decision    ),
-
-    .jump_addr_o       ( dbg_jump_addr      ), // PC from debug unit
-    .jump_req_o        ( dbg_jump_req       )  // set PC to new value
-  );
-
-
-`ifdef SIMCHECKER
-  logic is_interrupt;
-  assign is_interrupt = (pc_mux_id == PC_EXCEPTION) && (exc_pc_mux_id == EXC_PC_IRQ);
-
-  riscv_simchecker riscv_simchecker_i
-  (
-    .clk              ( clk_i                                ), // always-running clock for tracing
-    .rst_n            ( rst_ni                               ),
-
-    .fetch_enable     ( fetch_enable_i                       ),
-    .boot_addr        ( boot_addr_i                          ),
-    .core_id          ( core_id_i                            ),
-    .cluster_id       ( cluster_id_i                         ),
-
-    .instr_compressed ( if_stage_i.fetch_rdata[15:0]         ),
-    .pc_set           ( pc_set                               ),
-    .if_valid         ( if_valid                             ),
-
-    .pc               ( id_stage_i.pc_id_i                   ),
-    .instr            ( id_stage_i.instr                     ),
-    .is_compressed    ( is_compressed_id                     ),
-    .id_valid         ( id_stage_i.id_valid_o                ),
-    .is_decoding      ( id_stage_i.is_decoding_o             ),
-    .is_illegal       ( id_stage_i.illegal_insn_dec          ),
-    .is_interrupt     ( is_interrupt                         ),
-    .irq_no           ( exc_vec_pc_mux_id                    ),
-    .pipe_flush       ( id_stage_i.controller_i.pipe_flush_i ),
-
-    .ex_valid         ( ex_valid                             ),
-    .ex_reg_addr      ( id_stage_i.registers_i.waddr_b_i     ),
-    .ex_reg_we        ( id_stage_i.registers_i.we_b_i        ),
-    .ex_reg_wdata     ( id_stage_i.registers_i.wdata_b_i     ),
-
-    .ex_data_addr     ( data_addr_o                          ),
-    .ex_data_req      ( data_req_o                           ),
-    .ex_data_gnt      ( data_gnt_i                           ),
-    .ex_data_we       ( data_we_o                            ),
-    .ex_data_wdata    ( data_wdata_o                         ),
-
-    .wb_bypass        ( ex_stage_i.branch_in_ex_i            ),
-    .lsu_misaligned   ( data_misaligned                      ),
-
-    .wb_valid         ( wb_valid                             ),
-    .wb_reg_addr      ( id_stage_i.registers_i.waddr_a_i     ),
-    .wb_reg_we        ( id_stage_i.registers_i.we_a_i        ),
-    .wb_reg_wdata     ( id_stage_i.registers_i.wdata_a_i     ),
-
-    .wb_data_rvalid   ( data_rvalid_i                        ),
-    .wb_data_rdata    ( data_rdata_i                         )
-  );
-`endif
+  
+    /////////////////////////////////////////////////////////////
+    //  ____  _____ ____  _   _  ____   _   _ _   _ ___ _____  //
+    // |  _ \| ____| __ )| | | |/ ___| | | | | \ | |_ _|_   _| //
+    // | | | |  _| |  _ \| | | | |  _  | | | |  \| || |  | |   //
+    // | |_| | |___| |_) | |_| | |_| | | |_| | |\  || |  | |   //
+    // |____/|_____|____/ \___/ \____|  \___/|_| \_|___| |_|   //
+    //                                                         //
+    /////////////////////////////////////////////////////////////
+  
+    riscv_debug_unit debug_unit_i
+    (
+      .clk               ( clk_i              ), // always-running clock for debug
+      .rst_n             ( rst_ni             ),
+  
+      // Debug Interface
+      .debug_req_i       ( debug_req_i        ),
+      .debug_gnt_o       ( debug_gnt_o        ),
+      .debug_rvalid_o    ( debug_rvalid_o     ),
+      .debug_addr_i      ( debug_addr_i       ),
+      .debug_we_i        ( debug_we_i         ),
+      .debug_wdata_i     ( debug_wdata_i      ),
+      .debug_rdata_o     ( debug_rdata_o      ),
+      .debug_halt_i      ( debug_halt_i       ),
+      .debug_resume_i    ( debug_resume_i     ),
+      .debug_halted_o    ( debug_halted_o     ),
+  
+      // To/From Core
+      .settings_o        ( dbg_settings       ),
+      .trap_i            ( dbg_trap           ),
+      .exc_cause_i       ( exc_cause          ),
+      .stall_o           ( dbg_stall          ),
+      .dbg_req_o         ( dbg_req            ),
+      .dbg_ack_i         ( dbg_ack            ),
+  
+      // register file read port
+      .regfile_rreq_o    ( dbg_reg_rreq       ),
+      .regfile_raddr_o   ( dbg_reg_raddr      ),
+      .regfile_rdata_i   ( dbg_reg_rdata      ),
+  
+      // register file write port
+      .regfile_wreq_o    ( dbg_reg_wreq       ),
+      .regfile_waddr_o   ( dbg_reg_waddr      ),
+      .regfile_wdata_o   ( dbg_reg_wdata      ),
+  
+      // CSR read/write port
+      .csr_req_o         ( dbg_csr_req        ),
+      .csr_addr_o        ( dbg_csr_addr       ),
+      .csr_we_o          ( dbg_csr_we         ),
+      .csr_wdata_o       ( dbg_csr_wdata      ),
+      .csr_rdata_i       ( csr_rdata          ),
+  
+      // signals for PPC and NPC
+      .pc_if_i           ( pc_if              ), // from IF stage
+      .pc_id_i           ( pc_id              ), // from IF stage
+      .pc_ex_i           ( pc_ex              ), // PC of last executed branch (in EX stage) or p.elw
+  
+      .data_load_event_i ( data_load_event_ex ),
+      .instr_valid_id_i  ( instr_valid_id     ),
+  
+      .sleeping_i        ( sleeping           ),
+  
+      .branch_in_ex_i    ( branch_in_ex       ),
+      .branch_taken_i    ( branch_decision    ),
+  
+      .jump_addr_o       ( dbg_jump_addr      ), // PC from debug unit
+      .jump_req_o        ( dbg_jump_req       )  // set PC to new value
+    );
+  
+  `ifndef VERILATOR
+  `ifdef TRACE_EXECUTION
+    riscv_tracer riscv_tracer_i
+    (
+      .clk            ( clk_i                                ), // always-running clock for tracing
+      .rst_n          ( rst_ni                               ),
+  
+      .fetch_enable   ( fetch_enable_i                       ),
+      .core_id        ( core_id_i                            ),
+      .cluster_id     ( cluster_id_i                         ),
+  
+      .pc             ( id_stage_i.pc_id_i                   ),
+      .instr          ( id_stage_i.instr                     ),
+      .compressed     ( id_stage_i.is_compressed_i           ),
+      .id_valid       ( id_stage_i.id_valid_o                ),
+      .is_decoding    ( id_stage_i.is_decoding_o             ),
+      .pipe_flush     ( id_stage_i.controller_i.pipe_flush_i ),
+      .mret           ( id_stage_i.controller_i.mret_insn_i  ),
+      .uret           ( id_stage_i.controller_i.uret_insn_i  ),
+      .ecall          ( id_stage_i.controller_i.ecall_insn_i ),
+      .ebreak         ( id_stage_i.controller_i.ebrk_insn_i  ),
+      .rs1_value      ( id_stage_i.operand_a_fw_id           ),
+      .rs2_value      ( id_stage_i.operand_b_fw_id           ),
+      .rs3_value      ( id_stage_i.alu_operand_c             ),
+      .rs2_value_vec  ( id_stage_i.alu_operand_b             ),
+  
+      .rs1_is_fp      ( id_stage_i.regfile_fp_a              ),
+      .rs2_is_fp      ( id_stage_i.regfile_fp_b              ),
+      .rs3_is_fp      ( id_stage_i.regfile_fp_c              ),
+      .rd_is_fp       ( id_stage_i.regfile_fp_d              ),
+  
+      .ex_valid       ( ex_valid                             ),
+      .ex_reg_addr    ( regfile_alu_waddr_fw                 ),
+      .ex_reg_we      ( regfile_alu_we_fw                    ),
+      .ex_reg_wdata   ( regfile_alu_wdata_fw                 ),
+  
+      .ex_data_addr   ( data_addr_o                          ),
+      .ex_data_req    ( data_req_o                           ),
+      .ex_data_gnt    ( data_gnt_i                           ),
+      .ex_data_we     ( data_we_o                            ),
+      .ex_data_wdata  ( data_wdata_o                         ),
+  
+      .wb_bypass      ( ex_stage_i.branch_in_ex_i            ),
+  
+      .wb_valid       ( wb_valid                             ),
+      .wb_reg_addr    ( regfile_waddr_fw_wb_o                ),
+      .wb_reg_we      ( regfile_we_wb                        ),
+      .wb_reg_wdata   ( regfile_wdata                        ),
+  
+      .imm_u_type     ( id_stage_i.imm_u_type                ),
+      .imm_uj_type    ( id_stage_i.imm_uj_type               ),
+      .imm_i_type     ( id_stage_i.imm_i_type                ),
+      .imm_iz_type    ( id_stage_i.imm_iz_type[11:0]         ),
+      .imm_z_type     ( id_stage_i.imm_z_type                ),
+      .imm_s_type     ( id_stage_i.imm_s_type                ),
+      .imm_sb_type    ( id_stage_i.imm_sb_type               ),
+      .imm_s2_type    ( id_stage_i.imm_s2_type               ),
+      .imm_s3_type    ( id_stage_i.imm_s3_type               ),
+      .imm_vs_type    ( id_stage_i.imm_vs_type               ),
+      .imm_vu_type    ( id_stage_i.imm_vu_type               ),
+      .imm_shuffle_type ( id_stage_i.imm_shuffle_type        ),
+      .imm_clip_type  ( id_stage_i.instr_rdata_i[11:7]       )
+    );
+  `endif
+  `endif
 
     always_comb
     begin

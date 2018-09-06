@@ -18,12 +18,15 @@ module signal_tracker
     input integer previous_end_i,
     input bit recalculate_single_cycle,
     input bit previous_end_memory,
+    input integer cycles_back_to_recall,
+    input bit recalculate_back_cycle,
     
     // Outputs
     
     output integer signed time_out [1:0],
     output bit range_out,
-    output integer single_cycle_out
+    output integer single_cycle_out,
+    output bit [TRACKED_SIGNAL_WIDTH-1:0] signal_recall
 );
 
     bit [TRACKED_SIGNAL_WIDTH-1:0] buffer [BUFFER_WIDTH-1:0];
@@ -166,28 +169,36 @@ module signal_tracker
     
     // Single Cycle check (Did a signal occur in this period)
         
-        always@ (posedge recalculate_single_cycle)
+    always@ (posedge recalculate_single_cycle)
+    begin
+        single_cycle_out = -1; 
+        if (!(range_in[1] > counter || 
+            (!buffer_full && (range_in[0] > rear)) || 
+            (buffer_full && (range_in[1] - range_in[0] > BUFFER_WIDTH))
+             )) 
         begin
-            single_cycle_out = -1; 
-            if (!(range_in[1] > counter || 
-                (!buffer_full && (range_in[0] > rear)) || 
-                (buffer_full && (range_in[1] - range_in[0] > BUFFER_WIDTH))
-                 )) 
+            automatic integer limit = range_in[1] - range_in[0];
+            if (limit < 0) limit = range_in[0] - range_in[1];
+            for (int i=0; i <= limit; i++)
             begin
-                automatic integer limit = range_in[1] - range_in[0];
-                if (limit < 0) limit = range_in[0] - range_in[1];
-                for (int i=0; i <= limit; i++)
+                automatic integer buffer_index = rear - (counter - range_in[0]) + i;
+                if (buffer_index < 0) buffer_index += BUFFER_WIDTH;
+                if (buffer[buffer_index])
                 begin
-                    automatic integer buffer_index = rear - (counter - range_in[0]) + i;
-                    if (buffer_index < 0) buffer_index += BUFFER_WIDTH;
-                    if (buffer[buffer_index])
-                    begin
-                         single_cycle_out = range_in[0] + i - 1;
-                         break;
-                    end
+                     single_cycle_out = range_in[0] + i - 1;
+                     break;
                 end
-            end 
-        end
+            end
+        end 
+    end
+    
+    // Recall single value at particular time
+    always @(posedge recalculate_back_cycle)
+    begin
+        signal_recall = buffer[$unsigned(rear-cycles_back_to_recall) % BUFFER_WIDTH];
+    end
+        
+        
         
     // Reset behaviour
     
