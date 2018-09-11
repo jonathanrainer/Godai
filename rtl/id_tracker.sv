@@ -44,7 +44,7 @@ module id_tracker
      bit recalculate_time = 1'b0;
      integer previous_end = 0;
      bit update_end = 1'b0;
-     advanced_signal_tracker #(1, 1, 16) is_decoding_buffer  (
+     advanced_signal_tracker #(1, 1, 128) is_decoding_buffer  (
         .clk(clk), .rst(rst), .counter(counter), .tracked_signal(is_decoding), .corroborating_signal(id_ready), 
         .value_in(is_decoding_value_in), .time_out(is_decoding_time_out), .recalculate_time(recalculate_time),
         .update_end(update_end), .previous_end_i(previous_end)
@@ -59,7 +59,7 @@ module id_tracker
      integer jump_done_range_in [1:0] = {0,0};
      bit jump_done_range_out = 0;
      bit recalculate_jump_done_range = 1'b0;
-     signal_tracker  #(1, 16) jump_done_buffer (
+     signal_tracker  #(1, 128) jump_done_buffer (
         .clk(clk), .rst(rst), .counter(counter), .tracked_signal(jump_done), .range_in(jump_done_range_in),
         .range_out(jump_done_range_out), .recalculate_range(recalculate_jump_done_range)
      );
@@ -71,7 +71,7 @@ module id_tracker
      integer illegal_instruction_range_in [1:0] = {0,0};
      bit illegal_instruction_range_out = 0;
      bit recalculate_illegal_instruction_range = 1'b0;
-     signal_tracker  #(1, 16) illegal_instruction_buffer (
+     signal_tracker  #(1, 128) illegal_instruction_buffer (
         .clk(clk), .rst(rst), .counter(counter), .tracked_signal(illegal_instruction), 
         .range_in(illegal_instruction_range_in),
         .range_out(illegal_instruction_range_out), .recalculate_range(recalculate_illegal_instruction_range)

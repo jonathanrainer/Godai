@@ -62,7 +62,7 @@ module dragreder
 
     if_tracker if_tr (.*);
     id_tracker #() id_tr(.if_data_i(if_data_o), .*);
-    ex_tracker #(DATA_ADDR_WIDTH) ex_tr(.id_data_i(id_data_o), .wb_previous_end_i(previous_end_o), .*);
+    ex_tracker #(DATA_ADDR_WIDTH, 256) ex_tr(.id_data_i(id_data_o), .wb_previous_end_i(previous_end_o), .*);
     wb_tracker #() wb_tr(.ex_data_i(ex_data_o), .wb_data_o(trace_data_o), .*);
     initial
     begin

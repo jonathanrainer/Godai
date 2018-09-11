@@ -49,7 +49,7 @@ module wb_tracker
     integer wb_ready_value_in = 0;
     integer wb_ready_time_out [1:0] = {0,0};
     bit wb_ready_recalculate_time = 1'b0;
-    signal_tracker  #(1, 16) wb_ready_buffer (
+    signal_tracker  #(1, 128) wb_ready_buffer (
         .clk(clk), .rst(rst), .counter(counter), .tracked_signal(wb_ready), .value_in(wb_ready_value_in),
         .time_out(wb_ready_time_out), .recalculate_time(wb_ready_recalculate_time),
         .previous_end_i(previous_end), .update_end(update_end), .previous_end_memory(previous_end_memory)
@@ -60,7 +60,7 @@ module wb_tracker
     integer data_mem_rvalid_range_in [0:1] = {0,0};
     integer data_mem_rvalid_single_cycle_out = 0;
     bit data_mem_rvalid_recalculate_single_cycle = 1'b0;
-    signal_tracker  #(1, 16) data_mem_req_buffer (
+    signal_tracker  #(1, 128) data_mem_req_buffer (
         .clk(clk), .rst(rst), .counter(counter), .tracked_signal(data_mem_rvalid), .range_in(data_mem_rvalid_range_in),
         .previous_end_i(previous_end), .update_end(update_end), .recalculate_single_cycle(data_mem_rvalid_recalculate_single_cycle),
          .single_cycle_out(data_mem_rvalid_single_cycle_out), .previous_end_memory(previous_end_memory) );

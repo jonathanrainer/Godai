@@ -2,7 +2,8 @@ import ryuki_datatypes::trace_output;
 
 module ex_tracker
 #(
-    parameter DATA_ADDR_WIDTH = 32
+    parameter DATA_ADDR_WIDTH = 32,
+    parameter SIGNAL_BUFFER_SIZE = 256
 )
 (
     input logic clk,
@@ -55,7 +56,7 @@ module ex_tracker
     integer ex_ready_value_in = 0;
     integer ex_ready_time_out [1:0] = {0,0};
     bit ex_ready_recalculate_time = 1'b0;
-    signal_tracker  #(1, 32) ex_ready_buffer (
+    signal_tracker  #(1, SIGNAL_BUFFER_SIZE) ex_ready_buffer (
         .clk(clk), .rst(rst), .counter(counter), .tracked_signal(ex_ready), .value_in(ex_ready_value_in),
         .time_out(ex_ready_time_out), .recalculate_time(ex_ready_recalculate_time),
          .previous_end_i(previous_end_to_buffer), .update_end(update_end), .previous_end_memory(previous_end_memory)
@@ -66,7 +67,7 @@ module ex_tracker
     integer data_mem_req_value_in = 0;
     integer data_mem_req_time_out [1:0] = {0,0};
     bit data_mem_req_recalculate_time = 1'b0;
-    signal_tracker  #(1, 32) data_mem_req_buffer (
+    signal_tracker  #(1, SIGNAL_BUFFER_SIZE) data_mem_req_buffer (
         .clk(clk), .rst(rst), .counter(counter), .tracked_signal(data_mem_req), .value_in(data_mem_req_value_in),
         .time_out(data_mem_req_time_out), .recalculate_time(data_mem_req_recalculate_time), 
         .previous_end_i(previous_end_to_buffer), .update_end(update_end), .previous_end_memory(previous_end_memory)
@@ -77,7 +78,7 @@ module ex_tracker
     integer data_mem_addr_cycles_back = 0;
     bit data_mem_addr_recalculate_back_cycle = 1'b0;
     bit [DATA_ADDR_WIDTH-1:0] recalled_addr = 0;
-    signal_tracker  #(DATA_ADDR_WIDTH, 32) data_mem_addr_buffer (
+    signal_tracker  #(DATA_ADDR_WIDTH, SIGNAL_BUFFER_SIZE) data_mem_addr_buffer (
         .clk(clk), .rst(rst), .counter(counter), .tracked_signal(data_mem_addr), 
         .cycles_back_to_recall(data_mem_addr_cycles_back), 
         .recalculate_back_cycle(data_mem_addr_recalculate_back_cycle),
