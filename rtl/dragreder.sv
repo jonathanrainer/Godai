@@ -5,7 +5,8 @@ module dragreder
     parameter INSTR_ADDR_WIDTH = 32,
     parameter INSTR_DATA_WIDTH = 32,
     parameter DATA_ADDR_WIDTH = 32,
-    parameter TDATA_WIDTH = 32
+    parameter TDATA_WIDTH = 32,
+    parameter TRACE_BUFFER_SIZE = 64
 )
 (
     input logic clk,
@@ -15,6 +16,7 @@ module dragreder
 
     input logic if_busy,
     input logic if_ready,
+    input logic branch_decision,
 
     // Instruction Memory Ports
     input logic                     instr_req,
@@ -29,6 +31,7 @@ module dragreder
     input logic jump_done,
     input logic is_decoding,
     input logic illegal_instruction,
+    input logic branch_req,
 
     // EX Register Ports
 
@@ -61,9 +64,9 @@ module dragreder
     integer previous_end_o;
 
     if_tracker if_tr (.*);
-    id_tracker #() id_tr(.if_data_i(if_data_o), .*);
-    ex_tracker #(DATA_ADDR_WIDTH, 256) ex_tr(.id_data_i(id_data_o), .wb_previous_end_i(previous_end_o), .*);
-    wb_tracker #() wb_tr(.ex_data_i(ex_data_o), .wb_data_o(trace_data_o), .*);
+    id_tracker #(INSTR_DATA_WIDTH, DATA_ADDR_WIDTH, TRACE_BUFFER_SIZE) id_tr(.if_data_i(if_data_o), .*);
+    ex_tracker #(DATA_ADDR_WIDTH, 256, TRACE_BUFFER_SIZE) ex_tr(.id_data_i(id_data_o), .wb_previous_end_i(previous_end_o), .*);
+    wb_tracker #(TRACE_BUFFER_SIZE) wb_tr(.ex_data_i(ex_data_o), .wb_data_o(trace_data_o), .*);
     initial
     begin
         initialise_device();
@@ -83,7 +86,7 @@ module dragreder
 
     always @(posedge clk)
     begin
-
+//        if (counter == 32'h4548) $stop;
         counter <= counter + 1;
     end
     

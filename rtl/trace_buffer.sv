@@ -47,7 +47,7 @@ module trace_buffer
             trace_element_out = buffer[front];
             front = (front + 1) % BUFFER_WIDTH;
             size--;
-            if (front > rear)
+            if (size == 0)
             begin
                 front = -1;
                 rear = -1;

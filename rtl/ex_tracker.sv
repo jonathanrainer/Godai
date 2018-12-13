@@ -3,7 +3,8 @@ import ryuki_datatypes::trace_output;
 module ex_tracker
 #(
     parameter DATA_ADDR_WIDTH = 32,
-    parameter SIGNAL_BUFFER_SIZE = 256
+    parameter SIGNAL_BUFFER_SIZE = 256,
+    parameter TRACE_BUFFER_SIZE = 32
 )
 (
     input logic clk,
@@ -59,7 +60,8 @@ module ex_tracker
     signal_tracker  #(1, SIGNAL_BUFFER_SIZE) ex_ready_buffer (
         .clk(clk), .rst(rst), .counter(counter), .tracked_signal(ex_ready), .value_in(ex_ready_value_in),
         .time_out(ex_ready_time_out), .recalculate_time(ex_ready_recalculate_time),
-         .previous_end_i(previous_end_to_buffer), .update_end(update_end), .previous_end_memory(previous_end_memory)
+         .previous_end_i(previous_end_to_buffer), .update_end(update_end), .previous_end_memory(previous_end_memory),
+         .ready_flag(1'b1), .ex_ready_flag(1'b1), .data_mem_req_flag(1'b0)
         );
     logic ex_ready_present = 0;
     
@@ -70,7 +72,8 @@ module ex_tracker
     signal_tracker  #(1, SIGNAL_BUFFER_SIZE) data_mem_req_buffer (
         .clk(clk), .rst(rst), .counter(counter), .tracked_signal(data_mem_req), .value_in(data_mem_req_value_in),
         .time_out(data_mem_req_time_out), .recalculate_time(data_mem_req_recalculate_time), 
-        .previous_end_i(previous_end_to_buffer), .update_end(update_end), .previous_end_memory(previous_end_memory)
+        .previous_end_i(previous_end_to_buffer), .update_end(update_end), .previous_end_memory(previous_end_memory),
+        .ready_flag(1'b0), .ex_ready_flag(1'b0), .data_mem_req_flag(1'b1)
         );
     logic data_mem_req_present = 0;
     
@@ -82,13 +85,13 @@ module ex_tracker
         .clk(clk), .rst(rst), .counter(counter), .tracked_signal(data_mem_addr), 
         .cycles_back_to_recall(data_mem_addr_cycles_back), 
         .recalculate_back_cycle(data_mem_addr_recalculate_back_cycle),
-        .signal_recall(recalled_addr));
+        .signal_recall(recalled_addr), .ready_flag(1'b0), .ex_ready_flag(1'b0), .data_mem_req_flag(1'b0));
     
     // Trace Buffer
      bit data_request = 1'b0;
      bit data_present;
      trace_output buffer_output;
-     trace_buffer t_buffer (
+     trace_buffer #(TRACE_BUFFER_SIZE) t_buffer (
         .clk(clk), .rst(rst), .ready_signal(id_data_ready), .trace_element_in(id_data_i), 
         .data_request(data_request), .data_present(data_present), .trace_element_out(buffer_output)
      );
@@ -186,21 +189,19 @@ module ex_tracker
                     if (ex_ready_present)
                     begin
                         trace_element.ex_data.time_end <= counter - 1;
-                        previous_end_ex <= counter - 1;
-                        update_end <= 1'b1;
                         if (!(counter - 1 == ex_ready_time_out[0]) 
                             && data_mem_req_present && !data_mem_req)
                         begin
                             trace_element.ex_data.mem_access_req.time_start <= ex_ready_time_out[0];
                             trace_element.ex_data.mem_access_req.time_end <= counter -1;
+                            previous_end_ex <= counter -1;
+                            update_end <= 1'b1;
                             check_past_data_mem_addr_values(1);
                         end
                     end
                     else if (ex_ready)
                     begin
                         trace_element.ex_data.time_end <= counter;
-                        previous_end_ex <= counter;
-                        update_end <= 1'b1;
                         if (data_mem_req) 
                         begin
                             // This ensures that the whole interval covered already is checked.
@@ -215,12 +216,10 @@ module ex_tracker
                 begin
                     trace_element.ex_data.time_start <= ex_ready_time_out[0];
                     trace_element.ex_data.time_end <= ex_ready_time_out[1];
-                    previous_end_ex <= ex_ready_time_out[1];
-                    update_end <= 1'b1;
                     if (ex_ready_time_out[0] != ex_ready_time_out[1])
                     begin
                         // This ensures that the whole interval covered already is checked.
-                        check_past_data_mem_req_values(counter - ex_ready_time_out[0] + 2);
+                        check_past_data_mem_req_values(counter - ex_ready_time_out[0] + 1);
                         state <= CHECK_MEMORY_STATUS;
                     end 
                 end
@@ -357,28 +356,63 @@ module ex_tracker
             begin
                 data_mem_req_recalculate_time <= 1'b0;
                 state <= OUTPUT_RESULT;
-                if (trace_element.ex_data.time_start == data_mem_req_time_out[0])
+                if (trace_element.instruction ==? 32'h??????83 || 
+                    trace_element.instruction ==? 32'h??????03 || 
+                    trace_element.instruction ==? 32'h??????23 ||
+                    trace_element.instruction ==? 32'h??????a3
+                    )
                 begin
-                    trace_element.ex_data.mem_access_req.time_start <= data_mem_req_time_out[0];
-                end
-                if (data_mem_req_time_out[1] == -1)
-                begin
-                    if (data_mem_req_present && trace_element.ex_data.time_end == counter - 1)
+                    if ((data_mem_req_time_out[0] != trace_element.ex_data.time_start) &&
+                        (data_mem_req_time_out[1] > trace_element.ex_data.time_end))
                     begin
-                        trace_element.ex_data.mem_access_req.time_end <= counter - 1;
-                        check_past_data_mem_addr_values(1);
+                        trace_element.ex_data.mem_access_req.time_start <= trace_element.ex_data.time_start;
+                        trace_element.ex_data.mem_access_req.time_end <= trace_element.ex_data.time_end;
+                        check_past_data_mem_addr_values(counter - trace_element.ex_data.time_end);
                     end
-                    else if (data_mem_req && trace_element.ex_data.time_end == counter)
+                    else
                     begin
-                        trace_element.ex_data.mem_access_req.time_end <= counter;
-                        check_past_data_mem_addr_values(0);
-                    end
-                end
-                else if (trace_element.ex_data.time_end == data_mem_req_time_out[1])
-                begin
-                    trace_element.ex_data.mem_access_req.time_end <= data_mem_req_time_out[1];
-                    check_past_data_mem_addr_values(data_mem_req_time_out[1]); 
-                end
+                        if (trace_element.ex_data.time_start == data_mem_req_time_out[0])
+                        begin
+                            trace_element.ex_data.mem_access_req.time_start <= data_mem_req_time_out[0];
+                        end
+                        else if (data_mem_req_time_out[0] != -1 
+                                    && data_mem_req_time_out[1] <= trace_element.ex_data.time_end
+                                    )
+                        begin
+                            trace_element.ex_data.time_start <= data_mem_req_time_out[0];
+                            trace_element.ex_data.mem_access_req.time_start <= data_mem_req_time_out[0];
+                        end
+                        if (data_mem_req_time_out[1] == -1)
+                        begin
+                            if (data_mem_req_present && trace_element.ex_data.time_end == counter - 1)
+                            begin
+                                trace_element.ex_data.mem_access_req.time_end <= counter - 1;
+                                previous_end_ex <= trace_element.ex_data.time_end;
+                                update_end <= 1'b1;
+                                check_past_data_mem_addr_values(1);
+                            end
+                            else if (data_mem_req && trace_element.ex_data.time_end == counter)
+                            begin
+                                trace_element.ex_data.mem_access_req.time_end <= counter;
+                                previous_end_ex <= trace_element.ex_data.time_end;
+                                update_end <= 1'b1;
+                                check_past_data_mem_addr_values(0);
+                            end
+                        end
+                        else if (trace_element.ex_data.time_end == data_mem_req_time_out[1])
+                        begin
+                            trace_element.ex_data.mem_access_req.time_end <= data_mem_req_time_out[1];
+                            previous_end_ex <= trace_element.ex_data.time_end;
+                            update_end <= 1'b1;
+                            check_past_data_mem_addr_values(counter-data_mem_req_time_out[1]); 
+                        end
+                   end
+               end
+               else
+               begin
+                    previous_end_ex <=  trace_element.ex_data.time_end;   
+                    update_end <= 1'b1;      
+               end      
             end
             CHECK_GRANT:
             begin
@@ -402,10 +436,8 @@ module ex_tracker
                 end
                 else
                 begin
-                    previous_end_ex <= trace_element.ex_data.time_end;
-                    update_end <= 1'b1;
-                    if (trace_element.ex_data.mem_access_req.time_end != 0) previous_end_memory = 1'b1;
-                    else previous_end_memory = 1'b0;
+                    if (trace_element.ex_data.mem_access_req.time_end != 0) previous_end_memory <= 1'b1;
+                    else previous_end_memory <= 1'b0;
                     ex_data_o <= trace_element;
                     ex_data_ready <= 1'b1;
                     state <= EXECUTION_START;
@@ -416,7 +448,7 @@ module ex_tracker
     
     always @(update_end)
     begin
-        if (update_end) update_end = 1'b0;
+        if (update_end) update_end <= 1'b0;
     end
         
     always @(wb_previous_end_i, update_end)

@@ -108,6 +108,7 @@ module advanced_signal_tracker
                     else if (!corrob_high && corroborating_signal_buffer[buffer_index])
                     begin
                         time_out[1] = counter - (value_in - i);
+                        break;
                     end
                 end 
             end

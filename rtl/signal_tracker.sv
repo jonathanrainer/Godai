@@ -11,6 +11,9 @@ module signal_tracker
     input integer counter,
     input logic [TRACKED_SIGNAL_WIDTH-1:0] tracked_signal ,
     input integer value_in,
+    input logic ready_flag,
+    input logic ex_ready_flag,
+    input logic data_mem_req_flag,
     input bit recalculate_time,
     input integer range_in [0:1],
     input bit recalculate_range,
@@ -84,49 +87,83 @@ module signal_tracker
                 // Check if the current slot is the start (is high) or
                 // check to make sure that it's low and the previous cycle is high (in the case of a ready
                 // signal it's a 0 = activity type measure).
-                if (
-                    !found_start && 
-                        ( 
-                            buffer[buffer_index] || 
-                                (
-                                    ($unsigned(buffer_index - 1) % BUFFER_WIDTH != rear) &&
-                                    buffer[$unsigned(buffer_index - 1) % BUFFER_WIDTH] &&
-                                    (((counter - 1 - (value_in - i)) >= previous_end && !previous_end_memory) || 
-                                    (((counter - 1 - (value_in - i)) > previous_end && previous_end_memory)
-                                    ))
-                                )
-                        )
-                     && ((counter - (value_in - i)) > previous_end) 
-                   ) 
+                if (ready_flag)
                 begin
-                    time_out[0] = counter - (value_in - i);
-                    sig_state = buffer[buffer_index];
-                    if ((($unsigned(buffer_index - 1) % BUFFER_WIDTH != rear) &&
-                        !buffer[$unsigned(buffer_index - 1) % BUFFER_WIDTH]) ||
-                        buffer_index == front || !buffer[buffer_index])
+                    if (
+                        !found_start && 
+                            ( 
+                                buffer[buffer_index] || 
+                                    (
+                                        ($unsigned(buffer_index - 1) % BUFFER_WIDTH != rear) &&
+                                        buffer[$unsigned(buffer_index - 1) % BUFFER_WIDTH] &&
+                                        (((counter - 1 - (value_in - i)) >= previous_end && !previous_end_memory) || 
+                                        (((counter - 1 - (value_in - i)) > previous_end && previous_end_memory)
+                                        ))
+                                    ) ||
+                                (!buffer[rear - (counter - previous_end)] && !buffer[buffer_index])
+                            )
+                         && ((counter - (value_in - i)) > previous_end) 
+                       ) 
                     begin
-                        // You have a defined edge
-                        found_start = 1'b1;
-                    end
-                    else
-                        // You have found a single cycle location
+                        time_out[0] = counter - (value_in - i);
+                        sig_state = buffer[buffer_index];
+                        if ((($unsigned(buffer_index - 1) % BUFFER_WIDTH != rear) &&
+                            !buffer[$unsigned(buffer_index - 1) % BUFFER_WIDTH]) ||
+                            buffer_index == front || !buffer[buffer_index])
                         begin
-                            time_out[1] = time_out[0];
-                            previous_end = time_out[0];
+                            // You have a defined edge
+                            found_start = 1'b1;
+                        end
+                        else
+                            // You have found a single cycle location
+                            begin
+                                time_out[1] = time_out[0];
+                                previous_end = time_out[0];
+                                break;
+                            end
+                    end
+                    else if (found_start)
+                    begin
+                        if (buffer[buffer_index] && ((((buffer_index + 1) % BUFFER_WIDTH) != front &&
+                            !buffer[(buffer_index + 1) % BUFFER_WIDTH]) || 
+                            (buffer[buffer_index] != sig_state)))
+                        begin
+                            time_out[1] = counter - (value_in - i);
+                            if (!ex_ready_flag) previous_end = counter - (value_in - i);
                             break;
                         end
-                end
-                else if (found_start)
-                begin
-                    if (buffer[buffer_index] && ((((buffer_index + 1) % BUFFER_WIDTH) != front &&
-                        !buffer[(buffer_index + 1) % BUFFER_WIDTH]) || 
-                        (buffer[buffer_index] != sig_state)))
-                    begin
-                        time_out[1] = counter - (value_in - i);
-                        previous_end = counter - (value_in - i);
-                        break;
                     end
                 end
+                else
+                begin
+                    if (!found_start && buffer[buffer_index] && ((counter - (value_in - i)) > previous_end)) 
+                    begin
+                        time_out[0] = counter - (value_in - i);
+                        if ((($unsigned(buffer_index - 1) % BUFFER_WIDTH != rear) &&
+                            !buffer[$unsigned(buffer_index - 1) % BUFFER_WIDTH]) ||
+                            buffer_index == front || !buffer[buffer_index])
+                        begin
+                            // You have a defined edge
+                            found_start = 1'b1;
+                        end
+                        else
+                            // You have found a single cycle location
+                            begin
+                                time_out[1] = time_out[0];
+                                previous_end = time_out[0];
+                                break;
+                            end
+                    end
+                    else if (found_start)
+                    begin
+                        if (buffer[buffer_index] && ((buffer_index + 1) % BUFFER_WIDTH) != front && !buffer[(buffer_index + 1) % BUFFER_WIDTH]) 
+                        begin
+                            time_out[1] = counter - (value_in - i);
+                            if (!data_mem_req_flag) previous_end = counter - (value_in - i);
+                            break;
+                        end
+                    end  
+                end   
             end
         end
     end
@@ -155,7 +192,7 @@ module signal_tracker
                 if (limit < 0) limit = range_in[0] - range_in[1];
                 for (int i=0; i <= limit; i++)
                 begin
-                    automatic integer buffer_index = rear - (counter - range_in[0]) + i;
+                    automatic integer buffer_index = rear - (counter - range_in[0]) + 1 + i;
                     if (buffer_index < 0) buffer_index += BUFFER_WIDTH;
                     if (buffer[buffer_index])
                     begin
@@ -181,11 +218,11 @@ module signal_tracker
             if (limit < 0) limit = range_in[0] - range_in[1];
             for (int i=0; i <= limit; i++)
             begin
-                automatic integer buffer_index = rear - (counter - range_in[0]) + i;
+                automatic integer buffer_index = rear - (counter - range_in[0]) + i + 1;
                 if (buffer_index < 0) buffer_index += BUFFER_WIDTH;
                 if (buffer[buffer_index])
                 begin
-                     single_cycle_out = range_in[0] + i - 1;
+                     single_cycle_out = range_in[0] + i;
                      break;
                 end
             end

@@ -2,6 +2,7 @@ import ryuki_datatypes::trace_output;
 
 module wb_tracker
 #(
+    parameter TRACE_BUFFER_SIZE = 32
 )
 (
     input logic clk,
@@ -52,7 +53,8 @@ module wb_tracker
     signal_tracker  #(1, 128) wb_ready_buffer (
         .clk(clk), .rst(rst), .counter(counter), .tracked_signal(wb_ready), .value_in(wb_ready_value_in),
         .time_out(wb_ready_time_out), .recalculate_time(wb_ready_recalculate_time),
-        .previous_end_i(previous_end), .update_end(update_end), .previous_end_memory(previous_end_memory)
+        .previous_end_i(previous_end), .update_end(update_end), .previous_end_memory(previous_end_memory),
+        .ready_flag(1'b1), .ex_ready_flag(1'b0), .data_mem_req_flag(1'b0)
     );
     logic wb_ready_present = 0;
     
@@ -63,14 +65,15 @@ module wb_tracker
     signal_tracker  #(1, 128) data_mem_req_buffer (
         .clk(clk), .rst(rst), .counter(counter), .tracked_signal(data_mem_rvalid), .range_in(data_mem_rvalid_range_in),
         .previous_end_i(previous_end), .update_end(update_end), .recalculate_single_cycle(data_mem_rvalid_recalculate_single_cycle),
-         .single_cycle_out(data_mem_rvalid_single_cycle_out), .previous_end_memory(previous_end_memory) );
+         .single_cycle_out(data_mem_rvalid_single_cycle_out), .previous_end_memory(previous_end_memory), .ready_flag(1'b0), .ex_ready_flag(1'b0),
+         .data_mem_req_flag(1'b0));
     logic data_mem_rvalid_present = 0;
     
     // Trace Buffer
      bit data_request = 1'b0;
      bit data_present;
      trace_output buffer_output;
-     trace_buffer t_buffer (
+     trace_buffer #(TRACE_BUFFER_SIZE) t_buffer (
         .clk(clk), .rst(rst), .ready_signal(ex_data_ready), .trace_element_in(ex_data_i), 
         .data_request(data_request), .data_present(data_present), .trace_element_out(buffer_output)
      );

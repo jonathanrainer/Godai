@@ -92,7 +92,9 @@ module riscv_if_stage
     output logic        perf_imiss_o,           // Instruction Fetch Miss
     
     // tracing output
-    output logic        illegal_instr_o
+    output logic        illegal_instr_o,
+    output logic        branch_req_o,
+    output logic        fetch_valid_o
    
 );
 
@@ -395,6 +397,8 @@ module riscv_if_stage
    always_comb
    begin
         illegal_instr_o <= illegal_c_insn;
+        branch_req_o <= branch_req;
+        fetch_valid_o <= fetch_valid;
    end
 
 endmodule

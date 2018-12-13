@@ -92,9 +92,9 @@ module if_tracker
         begin
             if (instr_grant)
             begin
-                trace_element.addr <= instr_addr;
                 trace_element.if_data.mem_access_req.time_end <= counter;
                 trace_element.if_data.mem_access_res.time_start <= counter;
+                trace_element.addr <= instr_addr;
                 state <= WAIT_RVALID;
             end
         end

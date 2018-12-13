@@ -94,7 +94,9 @@ module riscv_core
   output logic jump_done_o,
   output logic ex_ready_o,
   output logic wb_ready_o,
-  output logic illegal_instr_o
+  output logic illegal_instr_o,
+  output logic branch_decision_o,
+  output logic branch_req_o
 );
 
   localparam N_HWLP      = 2;
@@ -380,7 +382,9 @@ module riscv_core
     .perf_imiss_o        ( perf_imiss        ),
     
     // Tracing Outputs
-    .illegal_instr_o     (illegal_instr_o)
+    .illegal_instr_o     (illegal_instr_o),
+    .branch_req_o        (branch_req_o),
+    .fetch_valid_o       (fetch_valid_o)
   );
 
 
@@ -911,6 +915,7 @@ module riscv_core
         is_decoding_o = is_decoding;
         ex_ready_o = ex_ready;
         wb_ready_o = lsu_ready_wb;
+        branch_decision_o = branch_decision;
     end
 
 endmodule

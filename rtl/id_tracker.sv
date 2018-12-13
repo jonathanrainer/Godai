@@ -1,7 +1,11 @@
 import ryuki_datatypes::trace_output;
 
+
 module id_tracker
 #(
+    parameter INSTR_DATA_WIDTH = 32,
+    parameter DATA_ADDR_WIDTH = 32,
+    parameter TRACE_BUFFER_SIZE = 32
 )
 (
     input logic clk,
@@ -19,6 +23,8 @@ module id_tracker
     input logic jump_done,
     input logic is_decoding,
     input logic illegal_instruction,
+    input logic branch_req,
+    input logic branch_decision,
     
     // Outputs to EX Tracker
     output trace_output id_data_o,
@@ -43,6 +49,7 @@ module id_tracker
      integer  is_decoding_time_out [1:0] = {0,0};
      bit recalculate_time = 1'b0;
      integer previous_end = 0;
+     integer potential_previous_end = 0;
      bit update_end = 1'b0;
      advanced_signal_tracker #(1, 1, 128) is_decoding_buffer  (
         .clk(clk), .rst(rst), .counter(counter), .tracked_signal(is_decoding), .corroborating_signal(id_ready), 
@@ -61,9 +68,11 @@ module id_tracker
      bit recalculate_jump_done_range = 1'b0;
      signal_tracker  #(1, 128) jump_done_buffer (
         .clk(clk), .rst(rst), .counter(counter), .tracked_signal(jump_done), .range_in(jump_done_range_in),
-        .range_out(jump_done_range_out), .recalculate_range(recalculate_jump_done_range)
+        .range_out(jump_done_range_out), .recalculate_range(recalculate_jump_done_range), .ready_flag(1'b1),
+        .ex_ready_flag(1'b0), .data_mem_req_flag(1'b0)
      );
      logic jump_done_present = 0;
+     bit [DATA_ADDR_WIDTH-1:0] jump_addr_loc  = 0;
      
      // Place to track the state of the illegal_instruction marker that indicates when a fetch has failed
      // to fetch a valid instruction
@@ -74,15 +83,28 @@ module id_tracker
      signal_tracker  #(1, 128) illegal_instruction_buffer (
         .clk(clk), .rst(rst), .counter(counter), .tracked_signal(illegal_instruction), 
         .range_in(illegal_instruction_range_in),
-        .range_out(illegal_instruction_range_out), .recalculate_range(recalculate_illegal_instruction_range)
+        .range_out(illegal_instruction_range_out), .recalculate_range(recalculate_illegal_instruction_range),
+        .ready_flag(1'b1), .ex_ready_flag(1'b0), .data_mem_req_flag(1'b0)
      );
      logic illegal_instruction_present = 0;
+       
+     integer branch_decision_range_in [1:0] = {0,0};
+     integer branch_decision_single_cycle_out = 0;
+     bit recalculate_branch_decision_single_cycle = 1'b0;
+     signal_tracker  #(1, 128) branch_decision_buffer (
+         .clk(clk), .rst(rst), .counter(counter), .tracked_signal(branch_decision && branch_req), 
+         .range_in(branch_decision_range_in),
+         .single_cycle_out(branch_decision_single_cycle_out), 
+         .recalculate_single_cycle(recalculate_branch_decision_single_cycle),
+         .ready_flag(1'b1), .ex_ready_flag(1'b0), .data_mem_req_flag(1'b0)
+     );
+     logic branch_decision_present = 0;
      
      // Trace Buffer
      bit data_request = 1'b0;
      bit data_present;
      trace_output buffer_output;
-     trace_buffer t_buffer (
+     trace_buffer #(TRACE_BUFFER_SIZE) t_buffer  (
         .clk(clk), .rst(rst), .ready_signal(if_data_valid), .trace_element_in(if_data_i), 
         .data_request(data_request), .data_present(data_present), .trace_element_out(buffer_output)
      );
@@ -92,6 +114,7 @@ module id_tracker
         unique case(state)
             DECODE_START:
             begin
+                update_end = 1'b0;
                 id_data_ready <= 1'b0;
                 if (data_present) 
                 begin
@@ -111,7 +134,6 @@ module id_tracker
             begin
                 recalculate_illegal_instruction_range <= 1'b0;
                 if (illegal_instruction_range_out)
-
                 begin
                     trace_element.pass_through <= 1'b1;
                     trace_element.id_data <= '{default:0};
@@ -144,12 +166,16 @@ module id_tracker
                             // no need to change the state variable as CHECK_JUMP is the correct next location.
                             trace_element.id_data.time_end <= counter;
                             previous_end = counter;
-                            update_end = 1'b1;
-                            check_past_jump_done_values(counter -1, counter);
+                            check_past_jump_done_values(counter-1, counter);
+                            check_past_branch_decision_values(trace_element.if_data.time_end, counter);
                             state <= CHECK_JUMP;
                         end
                         // If no end time is found then move to the state that constantly checks for an end.
-                        else state <= RECHECK_END_TIME; 
+                        else 
+                        begin
+                            id_ready_start_state <= id_ready;
+                            state <= RECHECK_END_TIME; 
+                        end
                     end
                     // If the is_decoding_present variable didn't get the start point there's a chance the 
                     // current value of is_decoding still holds the data we need solve
@@ -158,6 +184,7 @@ module id_tracker
                         trace_element.id_data.time_start <= counter;
                         // A start time has been found but as yet no end time so jump to a new state 
                         // to wait for that.
+                        id_ready_start_state <= id_ready;
                         state <= RECHECK_END_TIME;
                     end
                     // If none of this happens then you need to just check for a start time constantly
@@ -169,31 +196,35 @@ module id_tracker
                     // If you have a start point but as yet no end point you need to check through the
                     // other saved values to see whether the end point has been tracked or it needs to 
                     // be checked for.
-                    if (!is_decoding_present || (is_decoding_present && !id_ready_present))
+                    if (!is_decoding_present && id_ready_present)
                     begin
                         trace_element.id_data.time_end <= counter;
-                        previous_end <= counter;
-                        update_end <= 1'b1;
+                        potential_previous_end <= counter;
                         check_past_jump_done_values(is_decoding_time_out[0], counter);
+                        check_past_branch_decision_values(trace_element.if_data.time_end, counter);
                         state <= CHECK_JUMP;
                     end
-                    else if (!is_decoding || (is_decoding && !id_ready))
+                    else if (!is_decoding || id_ready)
                     begin
-                        trace_element.id_data.time_end <= counter + 1;
-                        previous_end <= counter + 1;
-                        update_end <= 1'b1;
-                        check_past_jump_done_values(is_decoding_time_out[0], counter+1);
+                        trace_element.id_data.time_end <= counter;
+                        potential_previous_end <= counter;
+                        check_past_jump_done_values(is_decoding_time_out[0], counter);
+                        check_past_branch_decision_values(trace_element.if_data.time_end, counter);
                         state <= CHECK_JUMP;
                     end
-                    else state <= RECHECK_END_TIME;
+                    else 
+                    begin
+                        id_ready_start_state <= id_ready;
+                        state <= RECHECK_END_TIME;
+                    end
                 end
                 else
                 begin
                     trace_element.id_data.time_start <= is_decoding_time_out[0];
                     trace_element.id_data.time_end <= is_decoding_time_out[1];
-                    previous_end <= is_decoding_time_out[1];
-                    update_end <= 1'b1;
+                    potential_previous_end <= is_decoding_time_out[1];
                     check_past_jump_done_values(is_decoding_time_out[0], is_decoding_time_out[1]);
+                    check_past_branch_decision_values(trace_element.if_data.time_end, is_decoding_time_out[1]+1);
                     state <= CHECK_JUMP;
                 end
             end
@@ -211,42 +242,51 @@ module id_tracker
                 if (!is_decoding || (id_ready_start_state && !id_ready))
                 begin
                     trace_element.id_data.time_end <= counter - 1;
-                    previous_end <= counter - 1;
+                    potential_previous_end <= counter - 1;
                     check_past_jump_done_values(trace_element.id_data.time_start, counter - 1);
-                    update_end <= 1'b1;
+                    check_past_branch_decision_values(trace_element.if_data.time_end, counter - 1);
                     state <= CHECK_JUMP;
                 end
                 else if (!id_ready_start_state && id_ready)
                 begin
                      trace_element.id_data.time_end <= counter;
-                     previous_end <= counter;
+                     potential_previous_end <= counter;
                      check_past_jump_done_values(trace_element.id_data.time_start, counter);
-                     update_end <= 1'b1;
+                     check_past_branch_decision_values(trace_element.if_data.time_end, counter);
                      state <= CHECK_JUMP;
                 end
             end
             CHECK_JUMP:
             begin
                 recalculate_jump_done_range <= 1'b0;
-                update_end <= 1'b0;
-                if (jump_done_range_out)
+                recalculate_branch_decision_single_cycle <= 1'b0;
+                state <= OUTPUT_RESULT;
+                if (jump_done_range_out && jump_addr_loc == 0)
                 begin
+                    jump_addr_loc <= trace_element.addr;
                     trace_element.pass_through <= 1'b1;
                     trace_element.ex_data <= '{default:0};
                     trace_element.wb_data <= '{default:0};  
-                    state <= OUTPUT_RESULT;
                 end
-                else
+                else if ((branch_decision_single_cycle_out <= trace_element.id_data.time_end && 
+                branch_decision_single_cycle_out >= trace_element.if_data.time_end) || (jump_addr_loc > 0 && trace_element.addr - jump_addr_loc == 4))
                 begin
-                    id_data_o <= trace_element;
-                    id_data_ready <= 1'b1;
-                    state <= DECODE_START;
+                    jump_addr_loc <= trace_element.addr;
+                    // If this isn't valid then we can invalidate the DECODE phase
+                    trace_element.pass_through <= 1'b1;
+                    trace_element.ex_data <= '{default:0};
+                    trace_element.wb_data <= '{default:0};  
+                    trace_element.id_data <= '{default:0};
+                    potential_previous_end = previous_end;
                 end
+                else jump_addr_loc <= 1'b0;
             end
            OUTPUT_RESULT:
            begin
                 id_data_o <= trace_element;
                 id_data_ready <= 1'b1;
+                previous_end <= potential_previous_end;
+                update_end <= 1'b1;
                 state <= DECODE_START;
            end
         endcase
@@ -285,6 +325,12 @@ module id_tracker
         jump_done_range_in <= {queue_end, queue_start};
         jump_done_present = jump_done;
         recalculate_jump_done_range <= 1'b1;
+    endtask
+    
+    task check_past_branch_decision_values(input integer queue_end, queue_start);
+            branch_decision_range_in <= {queue_end, queue_start};
+            branch_decision_present = jump_done;
+            recalculate_branch_decision_single_cycle <= 1'b1;
     endtask
     
     task check_past_illegal_instruction_values(input integer queue_end);
