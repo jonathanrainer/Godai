@@ -18,21 +18,14 @@
 // 
 //////////////////////////////////////////////////////////////////////////////////
 
-import ryuki_datatypes::trace_output;
-`include "../../include/ryuki_defines.sv"
+`include "../../include/godai_defines.sv"
 
-module ryuki_testbench;
+module godai_testbench;
 
-    logic clk_i;
-    logic rst_ni;
-    
-    logic clock_en_i;    // enable clock, otherwise it is gated
-    logic test_en_i;     // enable all clock gates for testing
-    
-    // Core ID, Cluster ID and boot address are considered more or less static
-    logic [31:0] boot_addr_i;
-    logic [ 3:0] core_id_i;
-    logic [ 5:0] cluster_id_i;
+    bit finish_flag;
+
+    logic clk;
+    logic rst_n;
     
     // Instruction memory interface
     logic instr_req_o;
@@ -42,7 +35,7 @@ module ryuki_testbench;
     logic [31:0] instr_rdata_i;
     
     // Instruction Memory
-    instruction_memory #(`ADDR_WIDTH, `DATA_WIDTH) i_mem  (clk_i, instr_req_o, instr_addr_o, 
+    instruction_memory #(`ADDR_WIDTH, `DATA_WIDTH) i_mem  (clk, instr_req_o, instr_addr_o, 
                                 instr_gnt_i, instr_rvalid_i, instr_rdata_i);
     
     // Data memory interface
@@ -56,27 +49,13 @@ module ryuki_testbench;
     logic [31:0] data_rdata_i;
     logic        data_err_i;
     
-    data_memory  #(`ADDR_WIDTH, `DATA_WIDTH) d_mem (clk_i, data_req_o, data_addr_o, data_we_o, data_be_o,
+    data_memory  #(`ADDR_WIDTH, `DATA_WIDTH) d_mem (clk, data_req_o, data_addr_o, data_we_o, data_be_o,
                         data_wdata_o, data_gnt_i,  data_rvalid_i, data_rdata_i,
                         data_err_i);
     
     // Interrupt inputs
-    logic [31:0] irq_i;                 // level sensitive IR lines
+    logic [31:0] irq_i;                 // level sensitive IR line
     
-    // Debug Interface
-    logic        debug_req_i;
-    logic        debug_gnt_o;
-    logic        debug_rvalid_o;
-    logic [14:0] debug_addr_i;
-    logic        debug_we_i;
-    logic [31:0] debug_wdata_i;
-    logic [31:0] debug_rdata_o;
-    logic        debug_halted_o;
-    logic        debug_halt_i;
-    logic        debug_resume_i;
-    
-    // CPU Control Signals
-    logic        fetch_enable_i;
     logic        core_busy_o;
     
     logic  ext_perf_counters_i;
@@ -92,33 +71,22 @@ module ryuki_testbench;
     logic wb_ready_o;
     logic illegal_instr_o;
     
-    trace_output trace_o;
-    
-    riscv_core  #(1, `DATA_WIDTH) core(.*);
-    
-    dragreder #(`ADDR_WIDTH, `DATA_WIDTH, `ADDR_WIDTH, 32) tracer(clk_i, rst_ni, if_busy_o, if_ready_o,
-    instr_req_o, instr_addr_o, instr_gnt_i,  instr_rvalid_i, instr_rdata_i, 
-    id_ready_o, jump_done_o, is_decoding_o,illegal_instr_o, ex_ready_o, 
-    data_req_o, data_gnt_i, data_rvalid_i, data_addr_o, wb_ready_o, trace_o);
+    godai_wrapper  #(1, `DATA_WIDTH) wrapper (.*);
     
     initial
         begin
             // Set up initial signals
-            clk_i = 0;
-            rst_ni = 0;
-            clock_en_i = 1;
-            test_en_i = 0;
-            core_id_i = 0;
-            cluster_id_i = 0;
-            boot_addr_i = 32'h20;
-            fetch_enable_i = 1;
-            #50 rst_ni = 1;
-            #100000 $finish;
+            clk = 0;
+            rst_n = 0;
+            #50 rst_n = 1;
+            finish_flag = 0;
         end
     
     always
         begin
-            #5 clk_i = ~clk_i;
+            #5 clk = ~clk;
+            if (wrapper.core.id_stage_i.registers_i.rf_reg[13] == 32'hBD8528BE) finish_flag <= 1;
+            if (finish_flag && instr_rvalid_i && wrapper.core.instr_rdata_i == 32'h6f) $finish;            
         end
 
 endmodule

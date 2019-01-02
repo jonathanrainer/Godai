@@ -36,39 +36,28 @@ set includeFiles {
     riscv_defines.sv 
 }
 
-# Create the directories to package the IP
-if {![file exists $thisDir/../cip]} {
-    file mkdir [file join $workDir cip]
-}
-if {![file exists $thisDir/../cip/Godai]} {
-    file mkdir [file join $workDir cip Godai]
-}
-if {![file exists $thisDir/../cip/Godai/GodaiLib]} {
-    file mkdir [file join $workDir cip Godai GodaiLib]
-}
-
 set rtlFilesFull {}
 set includeFilesFull {}
 
-# Copy the files into each folder
 foreach f $rtlFiles {
-    file copy -force [file join $rtlRoot $f] [file join $workDir cip Godai]
-    lappend rtlFilesFull [file join $workDir cip Godai $f]
+    lappend rtlFilesFull [file join $rtlRoot $f]
 }
 foreach f $includeFiles {
-    file copy -force [file join $includeRoot $f] [file join $workDir cip Godai GodaiLib]
-    lappend includeFilesFull [file join $workDir cip Godai GodaiLib $f]
+    lappend includeFilesFull [file join $includeRoot $f]
 }
+
+set simOnlyFiles {}
+lappend simOnlyFiles [file join $thisDir .. tb system godai_testbench.sv]
+lappend simOnlyFiles [file join $thisDir .. tb system instruction_memory_mock.sv]
+lappend simOnlyFiles [file join $thisDir .. tb system data_memory_mock.sv]
 
 # Create project 
 create_project -part xc7vx485tffg1761-2  -force Godai [file join $workDir]
 add_files -norecurse $rtlFilesFull
 add_files -norecurse $includeFilesFull
-set_property library GodaiLib [get_files */*_defines.sv]
+add_files -fileset sim_1 $simOnlyFiles
+set_property top godai_testbench [get_filesets sim_1]
 set_property library GodaiLib [get_files */*_config.sv]
 
 update_compile_order -fileset sources_1
 update_compile_order -fileset sim_1
-
-ipx::package_project -root_dir [file join $workDir cip Godai]
-

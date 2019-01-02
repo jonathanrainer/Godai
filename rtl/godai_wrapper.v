@@ -19,7 +19,7 @@
 // 
 //////////////////////////////////////////////////////////////////////////////////
 
-`include "GodaiLib/godai_defines.sv"
+`include "../include/godai_defines.sv"
 
 module godai_wrapper
 (
@@ -68,6 +68,7 @@ module godai_wrapper
     #(
         0, `DATA_WIDTH
     )
+    core
     (
         .clk_i(clk),
         .rst_ni(rst_n),
