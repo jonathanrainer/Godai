@@ -43,8 +43,11 @@ if {![file exists [file join $workDir cip]]} {
 if {![file exists [file join $workDir cip Godai]]} {
     file mkdir [file join $workDir cip Godai]
 }
-if {![file exists [file join $workDir cip Godai GodaiLib]]} {
-    file mkdir [file join $workDir cip Godai GodaiLib]
+if {![file exists [file join $workDir cip Godai rtl]]} {
+    file mkdir [file join $workDir cip Godai rtl]
+}
+if {![file exists [file join $workDir cip Godai include]]} {
+    file mkdir [file join $workDir cip Godai include]
 }
 
 set rtlFilesFull {}
@@ -52,29 +55,19 @@ set includeFilesFull {}
 
 # Copy the files into each folder
 foreach f $rtlFiles {
-    file copy -force [file join $rtlRoot $f] [file join $workDir cip Godai]
-    lappend rtlFilesFull [file join $workDir cip Godai $f]
+    file copy -force [file join $rtlRoot $f] [file join $workDir cip Godai rtl]
+    lappend rtlFilesFull [file join $workDir cip Godai rtl $f]
 }
 foreach f $includeFiles {
-    file copy -force [file join $includeRoot $f] [file join $workDir cip Godai GodaiLib]
-    lappend includeFilesFull [file join $workDir cip Godai GodaiLib $f]
+    file copy -force [file join $includeRoot $f] [file join $workDir cip Godai include]
+    lappend includeFilesFull [file join $workDir cip Godai include $f]
 }
-
-set simOnlyFiles {}
-lappend simOnlyFiles [file join $thisDir .. tb system godai_testbench.sv]
-lappend simOnlyFiles [file join $thisDir .. tb system instruction_memory_mock.sv]
-lappend simOnlyFiles [file join $thisDir .. tb system data_memory_mock.sv]
 
 # Create project 
 create_project -part xc7vx485tffg1761-2  -force Godai [file join $workDir]
 add_files -norecurse $rtlFilesFull
 add_files -norecurse $includeFilesFull
-add_files -fileset sim_1 $simOnlyFiles
-set_property top godai_testbench [get_filesets sim_1]
-set_property library GodaiLib [get_files */*_config.sv]
 
 update_compile_order -fileset sources_1
-update_compile_order -fileset sim_1
 
-ipx::package_project -root_dir [file join $workDir cip Godai]
-
+ipx::package_project -root_dir [file join $workDir cip Godai] -vendor "jonathan-rainer.com" -library Kuuga

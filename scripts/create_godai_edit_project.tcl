@@ -50,6 +50,7 @@ set simOnlyFiles {}
 lappend simOnlyFiles [file join $thisDir .. tb system godai_testbench.sv]
 lappend simOnlyFiles [file join $thisDir .. tb system instruction_memory_mock.sv]
 lappend simOnlyFiles [file join $thisDir .. tb system data_memory_mock.sv]
+lappend simOnlyFiles [file join $thisDir .. wcfg godai_testbench_behav.wcfg]
 
 # Create project 
 create_project -part xc7vx485tffg1761-2  -force Godai [file join $workDir]
