@@ -31,7 +31,6 @@ set rtlFiles {
 }
 
 set includeFiles {
-    godai_defines.sv
     riscv_config.sv
     riscv_defines.sv 
 }
@@ -43,6 +42,7 @@ if {![file exists [file join $workDir cip]]} {
 if {![file exists [file join $workDir cip Godai]]} {
     file mkdir [file join $workDir cip Godai]
 }
+
 if {![file exists [file join $workDir cip Godai rtl]]} {
     file mkdir [file join $workDir cip Godai rtl]
 }

@@ -18,7 +18,12 @@
 // 
 //////////////////////////////////////////////////////////////////////////////////
 
-`include "../../include/godai_defines.sv"
+`ifndef ADDR_WIDTH
+`define ADDR_WIDTH 32
+`endif
+`ifndef DATA_WIDTH
+`define DATA_WIDTH 32
+`endif
 
 module godai_testbench;
 
@@ -31,8 +36,8 @@ module godai_testbench;
     logic instr_req_o;
     logic instr_gnt_i;
     logic instr_rvalid_i;
-    logic [31:0] instr_addr_o;
-    logic [31:0] instr_rdata_i;
+    logic [`ADDR_WIDTH-1:0] instr_addr_o;
+    logic [`DATA_WIDTH-1:0] instr_rdata_i;
     
     // Instruction Memory
     instruction_memory #(`ADDR_WIDTH, `DATA_WIDTH) i_mem  (clk, instr_req_o, instr_addr_o, 
@@ -71,7 +76,7 @@ module godai_testbench;
     logic wb_ready_o;
     logic illegal_instr_o;
     
-    godai_wrapper  #(1, `DATA_WIDTH) wrapper (.*);
+    godai_wrapper  #(`ADDR_WIDTH, `DATA_WIDTH, `ADDR_WIDTH, `DATA_WIDTH) wrapper (.*);
     
     initial
         begin

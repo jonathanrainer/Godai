@@ -30,8 +30,8 @@ import riscv_defines::*;
 
 module riscv_core
 #(
-  parameter N_EXT_PERF_COUNTERS = 0,
-  parameter INSTR_RDATA_WIDTH   = 32
+    parameter N_EXT_PERF_COUNTERS = 0,
+    parameter INSTR_RDATA_WIDTH   = 32
 )
 (
   // Clock and Reset
@@ -47,11 +47,11 @@ module riscv_core
   input  logic [ 5:0] cluster_id_i,
 
   // Instruction memory interface
-  output logic                         instr_req_o,
-  input  logic                         instr_gnt_i,
-  input  logic                         instr_rvalid_i,
-  output logic                  [31:0] instr_addr_o,
-  input  logic [INSTR_RDATA_WIDTH-1:0] instr_rdata_i,
+  output logic                         	instr_req_o,
+  input  logic                         	instr_gnt_i,
+  input  logic                         	instr_rvalid_i,
+  output logic [31:0] 			instr_addr_o,
+  input  logic [INSTR_RDATA_WIDTH-1:0] 	instr_rdata_i,
 
   // Data memory interface
   output logic        data_req_o,

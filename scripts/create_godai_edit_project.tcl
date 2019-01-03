@@ -31,7 +31,6 @@ set rtlFiles {
 }
 
 set includeFiles {
-    godai_defines.sv
     riscv_config.sv
     riscv_defines.sv 
 }

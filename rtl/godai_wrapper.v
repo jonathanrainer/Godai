@@ -19,9 +19,13 @@
 // 
 //////////////////////////////////////////////////////////////////////////////////
 
-`include "../include/godai_defines.sv"
-
-module godai_wrapper
+module godai_wrapper 
+#(
+	parameter INSTR_ADDR_WIDTH = 32, 
+	parameter INSTR_DATA_WIDTH = 32,
+	parameter DATA_ADDR_WIDTH = 32,
+	parameter DATA_DATA_WIDTH = 32
+)
 (
     // Generic Signals
     input clk,
@@ -31,18 +35,18 @@ module godai_wrapper
     output                   instr_req_o,
     input                    instr_gnt_i,
     input                    instr_rvalid_i,
-    output [`ADDR_WIDTH-1:0]  instr_addr_o,
-    input  [`DATA_WIDTH-1:0]  instr_rdata_i,
+    output [INSTR_ADDR_WIDTH-1:0]  instr_addr_o,
+    input  [INSTR_DATA_WIDTH-1:0]  instr_rdata_i,
     
     // Data Memory Interface
     output                      data_req_o,
     input                       data_gnt_i,
     input                       data_rvalid_i,
     output                      data_we_o,
-    output [(`DATA_WIDTH/4)-1:0] data_be_o,
-    output [`ADDR_WIDTH-1:0]     data_addr_o,
-    output [`DATA_WIDTH-1:0]     data_wdata_o,
-    input  [`DATA_WIDTH-1:0]     data_rdata_i,
+    output [(DATA_DATA_WIDTH/4)-1:0] data_be_o,
+    output [DATA_ADDR_WIDTH-1:0]     data_addr_o,
+    output [DATA_DATA_WIDTH-1:0]     data_wdata_o,
+    input  [DATA_DATA_WIDTH-1:0]     data_rdata_i,
     input                       data_err_i,
     
     // Interrupt 
@@ -66,7 +70,7 @@ module godai_wrapper
     
     riscv_core 
     #(
-        0, `DATA_WIDTH
+        0, INSTR_DATA_WIDTH
     )
     core
     (
