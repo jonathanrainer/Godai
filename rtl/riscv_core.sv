@@ -383,8 +383,7 @@ module riscv_core
     
     // Tracing Outputs
     .illegal_instr_o     (illegal_instr_o),
-    .branch_req_o        (branch_req_o),
-    .fetch_valid_o       (fetch_valid_o)
+    .branch_req_o        (branch_req_o)
   );
 
 
