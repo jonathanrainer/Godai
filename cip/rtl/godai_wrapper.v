@@ -43,7 +43,7 @@ module godai_wrapper
     input                       data_gnt_i,
     input                       data_rvalid_i,
     output                      data_we_o,
-    output [(DATA_DATA_WIDTH/4)-1:0] data_be_o,
+    output [3:0] data_be_o,
     output [DATA_ADDR_WIDTH-1:0]     data_addr_o,
     output [DATA_DATA_WIDTH-1:0]     data_wdata_o,
     input  [DATA_DATA_WIDTH-1:0]     data_rdata_i,
