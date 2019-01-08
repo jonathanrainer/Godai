@@ -90,7 +90,6 @@ module riscv_core
   output logic if_ready_o,
   output logic id_ready_o,
   output logic is_decoding_o,
-  output logic data_req_id_o,
   output logic jump_done_o,
   output logic ex_ready_o,
   output logic wb_ready_o,
