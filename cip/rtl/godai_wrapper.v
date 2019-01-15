@@ -53,16 +53,7 @@ module godai_wrapper
     input [31:0] irq_i,
     
     // Tracing Signals
-    output if_busy_o,
-    output if_ready_o,
-    output id_ready_o,
-    output is_decoding_o,
-    output jump_done_o,
-    output ex_ready_o,
-    output wb_ready_o,
-    output illegal_instr_o,
-    output branch_decision_o,
-    output branch_req_o
+    output jump_done_o
 );
     riscv_core 
     #(
@@ -92,16 +83,7 @@ module godai_wrapper
         .data_rdata_i(data_rdata_i),
         .irq_i(irq_i),
         .fetch_enable_i(1'b1),
-        .if_busy_o(if_busy_o),
-        .if_ready_o(if_ready_o),
-        .id_ready_o(id_ready_o),
-        .is_decoding_o(is_decoding_o),
-        .jump_done_o(jump_done_o),
-        .ex_ready_o(ex_ready_o),
-        .wb_ready_o(wb_ready_o),
-        .illegal_instr_o(illegal_instr_o),
-        .branch_decision_o(branch_decision_o),
-        .branch_req_o(branch_req_o)
+        .jump_done_o(jump_done_o)
     );
 
 endmodule

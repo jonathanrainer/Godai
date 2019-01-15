@@ -86,16 +86,7 @@ module riscv_core
   input  logic [N_EXT_PERF_COUNTERS-1:0] ext_perf_counters_i,
   
   // Extra Tracing Ports
-  output logic if_busy_o,
-  output logic if_ready_o,
-  output logic id_ready_o,
-  output logic is_decoding_o,
-  output logic jump_done_o,
-  output logic ex_ready_o,
-  output logic wb_ready_o,
-  output logic illegal_instr_o,
-  output logic branch_decision_o,
-  output logic branch_req_o
+  output logic jump_done_o
 );
 
   localparam N_HWLP      = 2;
