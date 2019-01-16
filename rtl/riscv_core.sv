@@ -369,11 +369,7 @@ module riscv_core
     .if_valid_o          ( if_valid          ),
 
     .if_busy_o           ( if_busy           ),
-    .perf_imiss_o        ( perf_imiss        ),
-    
-    // Tracing Outputs
-    .illegal_instr_o     (illegal_instr_o),
-    .branch_req_o        (branch_req_o)
+    .perf_imiss_o        ( perf_imiss        )
   );
 
 
@@ -895,16 +891,5 @@ module riscv_core
     );
   `endif
   `endif
-
-    always_comb
-    begin
-        if_busy_o = if_busy;
-        if_ready_o = if_ready;
-        id_ready_o = id_ready;
-        is_decoding_o = is_decoding;
-        ex_ready_o = ex_ready;
-        wb_ready_o = lsu_ready_wb;
-        branch_decision_o = branch_decision;
-    end
 
 endmodule
