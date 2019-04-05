@@ -86,7 +86,9 @@ module riscv_core
   input  logic [N_EXT_PERF_COUNTERS-1:0] ext_perf_counters_i,
   
   // Extra Tracing Ports
-  output logic jump_done_o
+  output logic jump_done_o,
+  output logic branch_decision_o,
+  output logic is_decoding_o
 );
 
   localparam N_HWLP      = 2;
@@ -540,7 +542,7 @@ module riscv_core
     .perf_ld_stall_o              ( perf_ld_stall        ),
     
     // Tracing Output
-    .jump_done_o                  (jump_done_o           )
+    .jump_done_o                  (jump_done_o          )
   );
 
 
@@ -891,5 +893,8 @@ module riscv_core
     );
   `endif
   `endif
+  
+  assign branch_decision_o = branch_decision;
+  assign is_decoding_o = is_decoding;
 
 endmodule
