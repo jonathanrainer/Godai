@@ -55,7 +55,9 @@ module godai_wrapper
     // Tracing Signals
     output jump_done_o,
     output branch_decision_o,
-    output is_decoding_o
+    output is_decoding_o,
+    output pc_set_o,
+    output branch_req_o
 );
     riscv_core 
     #(
@@ -87,7 +89,9 @@ module godai_wrapper
         .fetch_enable_i(1'b1),
         .jump_done_o(jump_done_o),
         .branch_decision_o(branch_decision_o),
-        .is_decoding_o(is_decoding_o)
+        .is_decoding_o(is_decoding_o),
+        .pc_set_o(pc_set_o),
+        .branch_req_o(branch_req_o)
     );
 
 endmodule

@@ -88,7 +88,9 @@ module riscv_core
   // Extra Tracing Ports
   output logic jump_done_o,
   output logic branch_decision_o,
-  output logic is_decoding_o
+  output logic is_decoding_o,
+  output logic pc_set_o,
+  output logic branch_req_o
 );
 
   localparam N_HWLP      = 2;
@@ -371,7 +373,8 @@ module riscv_core
     .if_valid_o          ( if_valid          ),
 
     .if_busy_o           ( if_busy           ),
-    .perf_imiss_o        ( perf_imiss        )
+    .perf_imiss_o        ( perf_imiss        ),
+    .branch_req_o        ( branch_req_o      )
   );
 
 
@@ -896,5 +899,6 @@ module riscv_core
   
   assign branch_decision_o = branch_decision;
   assign is_decoding_o = is_decoding;
+  assign pc_set_o = pc_set;
 
 endmodule
