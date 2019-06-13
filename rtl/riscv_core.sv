@@ -90,7 +90,8 @@ module riscv_core
   output logic branch_decision_o,
   output logic is_decoding_o,
   output logic pc_set_o,
-  output logic branch_req_o
+  output logic branch_req_o,
+  output logic id_ready_o
 );
 
   localparam N_HWLP      = 2;
@@ -900,5 +901,6 @@ module riscv_core
   assign branch_decision_o = branch_decision;
   assign is_decoding_o = is_decoding;
   assign pc_set_o = pc_set;
+  assign id_ready_o = id_ready;
 
 endmodule
