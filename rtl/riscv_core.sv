@@ -91,7 +91,8 @@ module riscv_core
   output logic is_decoding_o,
   output logic pc_set_o,
   output logic branch_req_o,
-  output logic id_ready_o
+  output logic id_ready_o,
+  output integer instr_count
 );
 
   localparam N_HWLP      = 2;
@@ -902,5 +903,11 @@ module riscv_core
   assign is_decoding_o = is_decoding;
   assign pc_set_o = pc_set;
   assign id_ready_o = id_ready;
+  
+  always_ff @(posedge clk)
+  begin
+    if (!rst_ni) instr_count <= 0;
+    else if(id_valid & is_decoding) instr_count <= instr_count + 1;
+  end
 
 endmodule

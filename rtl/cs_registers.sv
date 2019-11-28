@@ -93,25 +93,23 @@ module riscv_cs_registers
   input  logic                 mem_load_i,        // load from memory in this cycle
   input  logic                 mem_store_i,       // store to memory in this cycle
 
-  input  logic [N_EXT_CNT-1:0] ext_counters_i
+  input  logic [N_EXT_CNT-1:0] ext_counters_i,
+  
+  output integer               instr_count
 );
 
   localparam N_PERF_COUNTERS = 11 + N_EXT_CNT;
-
-`ifdef ASIC_SYNTHESIS
-  localparam N_PERF_REGS     = 1;
-`else
-  localparam N_PERF_REGS     = N_PERF_COUNTERS;
-`endif
+  
+  localparam N_PERF_REGS = N_PERF_COUNTERS;
 
   // Performance Counter Signals
   logic                          id_valid_q;
-  logic [N_PERF_COUNTERS-1:0]    PCCR_in;  // input signals for each counter category
-  logic [N_PERF_COUNTERS-1:0]    PCCR_inc, PCCR_inc_q; // should the counter be increased?
+  (* dont_touch = "true" *) logic [N_PERF_COUNTERS-1:0]    PCCR_in;  // input signals for each counter category
+  (* dont_touch = "true" *) logic [N_PERF_COUNTERS-1:0]    PCCR_inc, PCCR_inc_q; // should the counter be increased?
 
-  logic [N_PERF_REGS-1:0] [31:0] PCCR_q, PCCR_n; // performance counters counter register
-  logic [1:0]                    PCMR_n, PCMR_q; // mode register, controls saturation and global enable
-  logic [N_PERF_COUNTERS-1:0]    PCER_n, PCER_q; // selected counter input
+  (* dont_touch = "true" *) logic [N_PERF_REGS-1:0] [31:0] PCCR_q, PCCR_n; // performance counters counter register
+  (* dont_touch = "true" *) logic [1:0]                    PCMR_n, PCMR_q; // mode register, controls saturation and global enable
+  (* dont_touch = "true" *) logic [N_PERF_COUNTERS-1:0]    PCER_n, PCER_q; // selected counter input
 
   logic [31:0]                   perf_rdata;
   logic [4:0]                    pccr_index;
