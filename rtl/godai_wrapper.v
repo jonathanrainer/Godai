@@ -59,7 +59,8 @@ module godai_wrapper
     output pc_set_o,
     output branch_req_o,
     output id_ready_o,
-    output [31:0] instr_count_o
+    output [31:0] instr_count_o,
+    output [31:0] mem_req_count_o
 );
     riscv_core 
     #(
@@ -95,7 +96,8 @@ module godai_wrapper
         .pc_set_o(pc_set_o),
         .branch_req_o(branch_req_o),
         .id_ready_o(id_ready_o),
-        .instr_count(instr_count_o)
+        .instr_count(instr_count_o),
+        .mem_req_count(mem_req_count_o)
     );
 
 endmodule

@@ -92,7 +92,8 @@ module riscv_core
   output logic pc_set_o,
   output logic branch_req_o,
   output logic id_ready_o,
-  output integer instr_count
+  output integer instr_count,
+  output integer mem_req_count
 );
 
   localparam N_HWLP      = 2;
@@ -906,8 +907,16 @@ module riscv_core
   
   always_ff @(posedge clk)
   begin
-    if (!rst_ni) instr_count <= 0;
-    else if(id_valid & is_decoding) instr_count <= instr_count + 1;
+    if (!rst_ni) 
+    begin
+        instr_count <= 0;
+        mem_req_count <= 0;
+    end
+    else 
+    begin
+        if(id_valid & is_decoding) instr_count <= instr_count + 1;
+        if(data_rvalid_i) mem_req_count <= mem_req_count + 1;
+    end
   end
 
 endmodule
